@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metavir — Virus Taxonomy Guessing Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+/* ── THEME TOKENS ──────────────────────────────────────────────── */
+:root {
+  --font-mono: 'Space Mono', monospace;
+  --font-sans: 'DM Sans', sans-serif;
+  --trans: 0.22s ease;
+}
+
+[data-theme="dark"] {
+  --bg:          #060a10;
+  --bg2:         #0c1420;
+  --bg3:         #111d2e;
+  --bg4:         #162338;
+  --border:      rgba(0,230,180,0.11);
+  --border2:     rgba(0,230,180,0.27);
+  --text:        #dff0ea;
+  --text2:       #7ab5a0;
+  --text3:       #3f6e5c;
+  --shadow:      rgba(0,0,0,0.5);
+  --teal:        #00e6b4;
+  --teal2:       #00b890;
+  --teal-glow:   rgba(0,230,180,0.14);
+  --purple:      #8b5cf6;
+  --amber:       #f59e0b;
+  --red:         #ef4444;
+  --logo-glow:   rgba(0,230,180,0.35);
+  --logo-glow2:  rgba(139,92,246,0.45);
+  --nf-root:     rgba(139,92,246,0.14);
+  --ns-root:     rgba(139,92,246,0.55);
+  --nf-inner:    rgba(0,180,140,0.07);
+  --ns-inner:    rgba(0,230,180,0.2);
+  --nf-leaf:     rgba(245,158,11,0.14);
+  --ns-leaf:     rgba(245,158,11,0.6);
+  --nf-win:      rgba(0,230,180,0.17);
+  --ns-win:      #00e6b4;
+  --link-stroke: rgba(0,230,180,0.28);
+  --rank-col:    rgba(100,170,150,0.4);
+}
+
+[data-theme="light"] {
+  --bg:          #f0f8f5;
+  --bg2:         #ffffff;
+  --bg3:         #e6f2ed;
+  --bg4:         #d5e9e1;
+  --border:      rgba(0,120,90,0.13);
+  --border2:     rgba(0,120,90,0.32);
+  --text:        #0a251c;
+  --text2:       #2a6450;
+  --text3:       #7ab59e;
+  --shadow:      rgba(0,60,40,0.1);
+  --teal:        #007a5e;
+  --teal2:       #005c47;
+  --teal-glow:   rgba(0,122,94,0.1);
+  --purple:      #6d28d9;
+  --amber:       #b45309;
+  --red:         #dc2626;
+  --logo-glow:   rgba(0,140,100,0.2);
+  --logo-glow2:  rgba(90,40,180,0.15);
+  --nf-root:     rgba(109,40,217,0.07);
+  --ns-root:     rgba(100,40,200,0.4);
+  --nf-inner:    rgba(0,130,90,0.05);
+  --ns-inner:    rgba(0,130,90,0.22);
+  --nf-leaf:     rgba(180,100,0,0.09);
+  --ns-leaf:     rgba(160,90,0,0.45);
+  --nf-win:      rgba(0,150,110,0.1);
+  --ns-win:      #007a5e;
+  --link-stroke: rgba(0,130,90,0.25);
+  --rank-col:    rgba(0,90,60,0.35);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  transition: background var(--trans), color var(--trans);
+}
+
+/* ── LAYOUT ──────────────────────────────────────────────── */
+.page { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+
+/* ── HEADER ──────────────────────────────────────────────── */
+.header { display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
+.header-top { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; flex-wrap: wrap; }
+
+.icon-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 6px 13px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: all var(--trans);
+  white-space: nowrap;
+}
+.icon-btn:hover { border-color: var(--teal); color: var(--teal); }
+.icon-btn svg { width: 13px; height: 13px; fill: currentColor; flex-shrink: 0; }
+
+/* taxonomy mode selector */
+.mode-wrap { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mode-label { font-size: 11px; font-family: var(--font-mono); color: var(--text3); white-space: nowrap; }
+.mode-pills { display: flex; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.mode-pill {
+  padding: 5px 11px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text2);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: all var(--trans);
+  white-space: nowrap;
+}
+.mode-pill:not(:last-child) { border-right: 1px solid var(--border); }
+.mode-pill.active { background: var(--teal-glow); color: var(--teal); font-weight: 700; }
+.mode-pill:hover:not(.active) { background: var(--bg4); color: var(--text); }
+
+.logo-title {
+  font-family: var(--font-mono);
+  font-size: clamp(26px, 5vw, 38px);
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  color: var(--teal);
+  text-shadow: 0 0 28px var(--logo-glow);
+  line-height: 1;
+}
+.logo-title .accent { color: var(--purple); text-shadow: 0 0 28px var(--logo-glow2); }
+.tagline { font-size: 13px; color: var(--text2); margin-top: 5px; letter-spacing: 0.3px; }
+
+.meta-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+.pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 999px; padding: 4px 13px;
+  font-size: 12px; color: var(--text2); font-family: var(--font-mono);
+}
+.pill b { color: var(--teal); }
+.pill.warn b { color: var(--amber); }
+.pill.danger b { color: var(--red); }
+
+/* ── INPUT ─────────────────────────────────────────────────── */
+.input-row { display: flex; gap: 8px; margin-bottom: 12px; position: relative; }
+.search-wrap { flex: 1; position: relative; }
+
+input[type="text"] {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 11px;
+  padding: 13px 16px;
+  font-size: 15px;
+  font-family: var(--font-sans);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--trans), box-shadow var(--trans), background var(--trans);
+}
+input[type="text"]:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-glow); }
+input[type="text"]::placeholder { color: var(--text3); }
+input[type="text"]:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.guess-btn {
+  background: var(--teal); color: var(--bg);
+  border: none; border-radius: 11px;
+  padding: 13px 24px; font-size: 15px; font-weight: 600;
+  font-family: var(--font-sans); cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background var(--trans), transform 0.1s;
+}
+.guess-btn:hover { background: var(--teal2); }
+.guess-btn:active { transform: scale(0.97); }
+.guess-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── AUTOCOMPLETE ─────────────────────────────────────────── */
+.ac-list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 11px; z-index: 300; max-height: 250px;
+  overflow-y: auto; display: none; box-shadow: 0 8px 28px var(--shadow);
+}
+.ac-list.show { display: block; }
+.ac-item {
+  padding: 9px 15px; font-size: 14px; cursor: pointer;
+  transition: background 0.1s; display: flex; flex-direction: column; gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.ac-item:last-child { border-bottom: none; }
+.ac-item:hover, .ac-item.sel { background: var(--teal-glow); }
+.ac-name { color: var(--text); }
+.ac-rank { color: var(--text3); font-size: 11px; font-family: var(--font-mono); }
+
+/* ── STATUS ──────────────────────────────────────────────── */
+.status-msg { text-align: center; font-size: 13px; min-height: 20px; margin-bottom: 10px; color: var(--text2); font-family: var(--font-mono); }
+.status-msg.warn  { color: var(--amber); }
+.status-msg.good  { color: var(--teal); font-size: 15px; font-weight: 700; }
+.status-msg.bad   { color: var(--red); }
+
+/* ── END BANNER ──────────────────────────────────────────── */
+.end-banner {
+  display: none; border-radius: 14px; padding: 22px 18px;
+  margin-bottom: 18px; text-align: center;
+  border: 1px solid var(--teal); background: var(--nf-win);
+  animation: fadeUp 0.35s ease;
+}
+.end-banner.show { display: block; }
+.end-banner.lose { border-color: var(--red); background: rgba(239,68,68,0.06); }
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+.end-title { font-family: var(--font-mono); font-size: clamp(17px,4vw,23px); color: var(--teal); margin-bottom: 6px; text-shadow: 0 0 18px var(--logo-glow); }
+.end-banner.lose .end-title { color: var(--red); text-shadow: none; }
+.end-sub { font-size: 14px; color: var(--text2); margin-bottom: 14px; line-height: 1.6; }
+.end-sub b { color: var(--teal); }
+.end-banner.lose .end-sub b { color: var(--red); }
+
+/* ── VIRUS IMAGE ─────────────────────────────────────────── */
+.virus-img-wrap { display: none; margin: 12px auto 16px; max-width: 360px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border2); }
+.virus-img-wrap.show { display: block; }
+.virus-img-wrap img { width: 100%; display: block; object-fit: cover; max-height: 240px; background: var(--bg3); }
+.virus-img-caption { font-size: 11px; font-family: var(--font-mono); color: var(--text3); padding: 6px 10px; background: var(--bg3); text-align: center; }
+.virus-img-caption a { color: var(--teal); text-decoration: none; }
+.virus-img-caption a:hover { text-decoration: underline; }
+
+/* ── TAXONOMY COMPARE (win screen) ───────────────────────── */
+.tax-compare {
+  display: none;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 14px 0;
+  text-align: left;
+}
+.tax-compare.show { display: block; }
+.tax-compare-title {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; text-align: center;
+}
+.tax-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 580px) { .tax-cols { grid-template-columns: 1fr; } }
+
+.tax-col { display: flex; flex-direction: column; gap: 0; }
+.tax-col-head {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  padding: 6px 10px; border-radius: 7px 7px 0 0;
+  text-align: center; letter-spacing: 0.5px;
+}
+.tax-col-head.classic  { background: rgba(139,92,246,0.18); color: var(--purple); }
+.tax-col-head.simple   { background: var(--teal-glow); color: var(--teal); }
+.tax-col-head.full     { background: rgba(245,158,11,0.14); color: var(--amber); }
+
+.tax-row {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 4px 10px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  font-size: 12px; line-height: 1.4;
+}
+.tax-row:last-child { border-bottom: 1px solid var(--border); border-radius: 0 0 7px 7px; padding-bottom: 8px; }
+.tax-row:nth-child(even) { background: rgba(0,0,0,0.03); }
+[data-theme="dark"] .tax-row:nth-child(even) { background: rgba(255,255,255,0.025); }
+.tax-rank { font-family: var(--font-mono); font-size: 9px; color: var(--text3); min-width: 52px; flex-shrink: 0; white-space: nowrap; }
+.tax-val  { color: var(--text); word-break: break-word; }
+.tax-val a { color: var(--teal); text-decoration: none; border-bottom: 1px dotted currentColor; }
+.tax-val a:hover { border-bottom-style: solid; }
+.tax-val.missing { color: var(--text3); font-style: italic; }
+
+.new-game-btn {
+  background: transparent; border: 1px solid var(--teal); color: var(--teal);
+  padding: 9px 22px; border-radius: 8px; font-size: 14px;
+  font-family: var(--font-sans); font-weight: 500; cursor: pointer;
+  transition: background var(--trans); margin-top: 4px;
+}
+.new-game-btn:hover { background: var(--teal-glow); }
+
+/* ── DENDROGRAM ──────────────────────────────────────────── */
+.dendro-card { display: none; background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 10px 8px; margin-bottom: 16px; overflow-x: auto; }
+.dendro-card.show { display: block; }
+#dendro-svg { display: block; margin: 0 auto; }
+
+/* ── GUESS LOG ───────────────────────────────────────────── */
+.log-wrap { display: flex; flex-direction: column; gap: 6px; }
+.guess-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 13px;
+  display: flex; align-items: center; gap: 9px;
+  animation: slideIn 0.26s ease;
+}
+@keyframes slideIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+.g-num  { font-family: var(--font-mono); font-size: 11px; color: var(--text3); min-width: 21px; }
+.g-name { font-size: 14px; font-weight: 500; flex:1; color: var(--text); }
+.g-badge { font-size: 11px; font-family: var(--font-mono); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.g-badge a { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
+.g-badge a:hover { border-bottom-style: solid; }
+.dep-0   { background:rgba(239,68,68,0.12);  color:#f87171; }
+.dep-1   { background:rgba(245,158,11,0.12); color:#fbbf24; }
+.dep-2   { background:rgba(234,179,8,0.12);  color:#facc15; }
+.dep-3   { background:rgba(132,204,22,0.12); color:#a3e635; }
+.dep-4   { background:rgba(34,197,94,0.13);  color:#4ade80; }
+.dep-5   { background:rgba(20,184,166,0.13); color:#2dd4bf; }
+.dep-6   { background:rgba(0,230,180,0.15);  color:#00e6b4; }
+.dep-win { background:rgba(139,92,246,0.18); color:#a78bfa; }
+
+/* ── HINT / HOW ───────────────────────────────────────────── */
+.hint-row { text-align: center; margin: 14px 0 4px; }
+.soft-btn {
+  background: transparent; border: 1px solid var(--border2); color: var(--text2);
+  padding: 6px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  transition: all var(--trans); font-family: var(--font-sans);
+}
+.soft-btn:hover { border-color: var(--teal); color: var(--teal); }
+.collapsible { display: none; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px 15px; font-size: 13px; color: var(--text2); margin-top: 7px; line-height: 1.65; }
+.collapsible.show { display: block; }
+.collapsible b { color: var(--teal); }
+.collapsible h4 { color: var(--teal); font-family: var(--font-mono); font-size: 13px; margin-bottom: 6px; }
+.collapsible ul { padding-left: 18px; }
+.collapsible li { margin-bottom: 4px; }
+.how-row { text-align: center; margin-top: 24px; }
+.ghost-btn { background: transparent; border: none; color: var(--text3); font-size: 12px; cursor: pointer; font-family: var(--font-mono); text-decoration: underline dotted; padding: 0; }
+.ghost-btn:hover { color: var(--text2); }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--text3); border-radius: 3px; }
+
+@media (max-width: 500px) {
+  .page { padding: 16px 10px 48px; }
+  .input-row { flex-direction: column; }
+  .header-top { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div class="mode-wrap">
+        <span class="mode-label">Taxonomy:</span>
+        <div class="mode-pills">
+          <button class="mode-pill" data-mode="classic" onclick="setMode('classic')">5-rank</button>
+          <button class="mode-pill active" data-mode="simple" onclick="setMode('simple')">8-rank</button>
+          <button class="mode-pill" data-mode="full" onclick="setMode('full')">15-rank</button>
+        </div>
+      </div>
+      <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">
+        <svg id="theme-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <span id="theme-label">Light mode</span>
+      </button>
+    </div>
+    <div class="logo-title">META<span class="accent">VIR</span></div>
+    <div class="tagline">Identify the mystery virus by its NCBI/ICTV taxonomy</div>
+    <div class="meta-row">
+      <span class="pill" id="guesses-pill">Guesses left: <b id="guesses-count">21</b></span>
+      <span class="pill" id="mode-pill">Mode: <b id="mode-name">8-rank</b></span>
+    </div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="input-row">
+    <div class="search-wrap">
+      <input type="text" id="guess-input" placeholder="Type a virus name…" autocomplete="off"/>
+      <div class="ac-list" id="ac-list"></div>
+    </div>
+    <button class="guess-btn" id="guess-btn" onclick="submitGuess()">Guess</button>
+  </div>
+  <div class="status-msg" id="status-msg"></div>
+
+  <!-- END BANNER -->
+  <div class="end-banner" id="end-banner">
+    <div class="end-title" id="end-title"></div>
+    <div class="end-sub" id="end-sub"></div>
+    <!-- Virus image (external link only, not embedded) -->
+    <div class="virus-img-wrap" id="virus-img-wrap">
+      <img id="virus-img" src="" alt=""/>
+      <div class="virus-img-caption" id="virus-img-caption"></div>
+    </div>
+    <!-- 3-column taxonomy comparison -->
+    <div class="tax-compare" id="tax-compare">
+      <div class="tax-compare-title">Taxonomy across three classification systems</div>
+      <div class="tax-cols">
+        <div class="tax-col" id="col-classic">
+          <div class="tax-col-head classic">Classic · 5-rank<br><span style="font-weight:400;opacity:0.7">pre-2017 ICTV</span></div>
+        </div>
+        <div class="tax-col" id="col-simple">
+          <div class="tax-col-head simple">Simplified · 8-rank<br><span style="font-weight:400;opacity:0.7">this game's default</span></div>
+        </div>
+        <div class="tax-col" id="col-full">
+          <div class="tax-col-head full">Full ICTV · 15-rank<br><span style="font-weight:400;opacity:0.7">current standard</span></div>
+        </div>
+      </div>
+    </div>
+    <button class="new-game-btn" onclick="newGame()">New game ↺</button>
+  </div>
+
+  <!-- DENDROGRAM -->
+  <div class="dendro-card" id="dendro-card">
+    <svg id="dendro-svg"></svg>
+  </div>
+
+  <!-- GUESS LOG -->
+  <div class="log-wrap" id="log-wrap"></div>
+
+  <!-- HINT -->
+  <div class="hint-row">
+    <button class="soft-btn" id="hint-btn" onclick="toggleHint()">Show hint</button>
+  </div>
+  <div class="collapsible" id="hint-box"></div>
+
+  <!-- HOW TO PLAY -->
+  <div class="how-row">
+    <button class="ghost-btn" onclick="toggleHow()">How to play</button>
+  </div>
+  <div class="collapsible" id="how-box">
+    <h4>How to play</h4>
+    <ul>
+      <li>You have <b>21 guesses</b> to identify the mystery virus.</li>
+      <li>Each guess badge shows the deepest taxon you share with the answer — click it to open Wikipedia.</li>
+      <li>The <b>dendrogram</b> grows to show how your guesses branch from the mystery virus.</li>
+      <li>Switch taxonomy mode (5 / 8 / 15-rank) at any time — it changes what ranks are shown in the dendrogram and badges. Switching resets the current game.</li>
+      <li>On a correct guess a micrograph is shown (where available) and a <b>side-by-side comparison</b> of all three classification systems is displayed.</li>
+      <li>Use <b>Show hint</b> for a one-line clue.</li>
+    </ul>
+    <p style="margin-top:8px;font-size:12px;color:var(--text3)">Taxonomy follows NCBI/ICTV 2023–2024 classification.</p>
+  </div>
+
+</div><!-- /.page -->
+
+<script>
+'use strict';
+// ─── CONSTANTS ────────────────────────────────────────────────────────────
+const MAX_GUESSES = 21;
+
+// Active taxonomy mode: 'classic' | 'simple' | 'full'
+let currentMode = 'simple';
+
+const MODE_META = {
+  classic: { label:'5-rank',  rankLabels:["root","order","family","subfamily","genus","species"] },
+  simple:  { label:'8-rank',  rankLabels:["root","realm","kingdom","phylum","class","order","family","genus","species"] },
+  full:    { label:'15-rank', rankLabels:["root","realm","subrealm","kingdom","subkingdom","phylum","subphylum","class","subclass","order","suborder","family","subfamily","genus","subgenus","species"] },
+};
+
+// Wikipedia slugs for shared taxa in badge links
+const WIKI = {
+  "Viruses":"Virus","Riboviria":"Riboviria","Orthornavirae":"Orthornavirae","Pararnavirae":"Pararnavirae",
+  "Negarnaviricota":"Negarnaviricota","Pisuviricota":"Pisuviricota","Kitrinoviricota":"Kitrinoviricota",
+  "Lenarviricota":"Lenarviricota","Duplornaviricota":"Duplornaviricota","Artverviricota":"Artverviricota",
+  "Duplodnaviria":"Duplodnaviria","Varidnaviria":"Varidnaviria","Monodnaviria":"Monodnaviria",
+  "Heunggongvirae":"Heunggongvirae","Bamfordvirae":"Bamfordvirae","Shotokuvirae":"Shotokuvirae",
+  "Uroviricota":"Uroviricota","Nucleocytoviricota":"Nucleocytoviricota","Cossaviricota":"Cossaviricota",
+  "Insthoviricetes":"Insthoviricetes","Monjiviricetes":"Mononegavirales","Ellioviricetes":"Ellioviricetes",
+  "Pisoniviricetes":"Pisoniviricetes","Flasuviricetes":"Flaviviridae","Alsuviricetes":"Alsuviricetes",
+  "Herviviricetes":"Herviviricetes","Pokkesviricetes":"Pokkesviricetes","Megaviricetes":"Nucleocytoviricota",
+  "Papovaviricetes":"Papovaviricetes","Revtraviricetes":"Retroviruses","Resentoviricetes":"Reoviridae",
+  "Caudoviricetes":"Caudoviricetes","Allassoviricetes":"Leviviridae","Hepeviricetes":"Hepeviridae",
+  "Quintoviricetes":"Parvoviridae","Nidovirales":"Nidovirales","Mononegavirales":"Mononegavirales",
+  "Articulavirales":"Orthomyxoviridae","Amarillovirales":"Flaviviridae","Picornavirales":"Picornavirales",
+  "Calicivirales":"Caliciviridae","Martellivirales":"Martellivirales","Ortervirales":"Ortervirales",
+  "Blubervirales":"Hepadnaviridae","Bunyavirales":"Bunyavirales","Reovirales":"Reoviridae",
+  "Herpesvirales":"Herpesvirales","Chitovirales":"Poxviridae","Imitervirales":"Nucleocytoviricota",
+  "Rowavirales":"Adenoviridae","Zurhausenvirales":"Papillomaviridae","Caudovirales":"Caudovirales",
+  "Norzivirales":"Leviviridae","Hepeviales":"Hepeviridae","Piccovirales":"Parvoviridae",
+  "Cornidoviricina":"Nidovirales","Ronidovirineae":"Nidovirales","Cornidovirineae":"Nidovirales",
+  "Coronaviridae":"Coronaviridae","Orthomyxoviridae":"Orthomyxoviridae","Filoviridae":"Filoviridae",
+  "Rhabdoviridae":"Rhabdoviridae","Paramyxoviridae":"Paramyxoviridae","Flaviviridae":"Flaviviridae",
+  "Picornaviridae":"Picornaviridae","Caliciviridae":"Caliciviridae","Retroviridae":"Retroviridae",
+  "Hepadnaviridae":"Hepadnaviridae","Arenaviridae":"Arenaviridae","Hantaviridae":"Hantaviridae",
+  "Phenuiviridae":"Phenuiviridae","Nairoviridae":"Nairoviridae","Sedoreoviridae":"Reoviridae",
+  "Herpesviridae":"Herpesviridae","Poxviridae":"Poxviridae","Papillomaviridae":"Papillomaviridae",
+  "Polyomaviridae":"Polyomaviridae","Parvoviridae":"Parvoviridae","Adenoviridae":"Adenoviridae",
+  "Straboviridae":"T4_phage","Drexlerviridae":"Lambda_phage","Fiersviridae":"MS2_phage",
+  "Virgaviridae":"Virgaviridae","Caulimoviridae":"Caulimoviridae","Togaviridae":"Togaviridae",
+  "Matonaviridae":"Rubella_virus","Pneumoviridae":"Pneumoviridae","Mimiviridae":"Mimiviridae",
+  "Pandoraviridae":"Pandoravirus","Hepeviridae":"Hepeviridae","Betacoronavirus":"Betacoronavirus",
+  "Alphainfluenzavirus":"Influenza_A_virus","Betainfluenzavirus":"Influenza_B_virus",
+  "Orthoebolavirus":"Ebolavirus","Orthomarburgvirus":"Marburgvirus","Lyssavirus":"Lyssavirus",
+  "Morbillivirus":"Morbillivirus","Rubulavirus":"Rubulavirus","Henipavirus":"Henipavirus",
+  "Orthoflavivirus":"Orthoflavivirus","Hepacivirus":"Hepacivirus","Enterovirus":"Enterovirus",
+  "Hepatovirus":"Hepatovirus","Norovirus":"Norovirus","Lentivirus":"Lentivirus",
+  "Orthohepadnavirus":"Hepadnaviridae","Mammarenavirus":"Mammarenavirus","Orthohantavirus":"Hantavirus",
+  "Phlebovirus":"Phlebovirus","Orthonairovirus":"Orthonairovirus","Rotavirus":"Rotavirus",
+  "Simplexvirus":"Herpes_simplex_virus","Varicellovirus":"Varicella_zoster_virus",
+  "Cytomegalovirus":"Cytomegalovirus","Lymphocryptovirus":"Epstein%E2%80%93Barr_virus",
+  "Rhadinovirus":"Kaposi%27s_sarcoma-associated_herpesvirus","Orthopoxvirus":"Orthopoxvirus",
+  "Alphapapillomavirus":"Alphapapillomavirus","Alphapolyomavirus":"Polyomaviridae",
+  "Dependoparvovirus":"Adeno-associated_virus","Erythroparvovirus":"Parvovirus_B19",
+  "Mastadenovirus":"Adenoviridae","Tequatrovirus":"T4_phage","Lambdavirus":"Lambda_phage",
+  "Allolevivirus":"MS2_phage","Tobamovirus":"Tobamovirus","Caulimovirus":"Caulimovirus",
+  "Alphavirus":"Alphavirus","Rubivirus":"Rubella_virus","Metapneumovirus":"Human_metapneumovirus",
+  "Orthopneumovirus":"Pneumoviridae","Mimivirus":"Mimivirus","Pandoravirus":"Pandoravirus",
+  "Deltaretrovirus":"HTLV-1","Gammaretrovirus":"Gammaretrovirus","Paslahepevirus":"Hepatitis_E_virus",
+  "Mononegavirales":"Mononegavirales","Bunyavirales":"Bunyavirales",
+  // Classic 5-rank order names
+  "Nidovirales":"Nidovirales","Mononegavirales":"Mononegavirales","Articulavirales":"Orthomyxoviridae",
+  "Amarillovirales":"Flaviviridae","Bunyavirales":"Bunyavirales","Herpesvirales":"Herpesvirales",
+  "Chitovirales":"Poxviridae","Caudovirales":"Caudovirales","Ortervirales":"Ortervirales",
+  "Picornavirales":"Picornavirales","Reovirales":"Reoviridae",
+  // Subfamilies
+  "Orthocoronavirinae":"Coronaviridae","Alphaherpesvirinae":"Herpesviridae",
+  "Betaherpesvirinae":"Herpesviridae","Gammaherpesvirinae":"Herpesviridae",
+  "Chordopoxvirinae":"Poxviridae","Enterovirinae":"Picornaviridae",
+  "Tritoviricetes":"Negarnaviricota",
+  // Suborders / subphyla present in full lineages
+  "Haploviricotina":"Negarnaviricota","Polyploviricotina":"Negarnaviricota",
+};
+
+// ─── VIRUS DATABASE ───────────────────────────────────────────────────────
+// Each virus has three lineage arrays:
+//   classic: [root, order?, family, subfamily?, genus]   (pre-2017; some lack order)
+//   simple:  [root, realm, kingdom, phylum, class, order, family, genus]  (8-rank)
+//   full:    [root, realm, subrealm?, kingdom, subkingdom?, phylum, subphylum?, class, subclass?, order, suborder?, family, subfamily?, genus, subgenus?]
+//            (15-rank ICTV/NCBI — only populated ranks included; nulls skipped in display)
+// All lineages end with the virus common name as species-level label.
+//
+// Classic system: order was rarely used pre-2017; mark as null if not assigned then.
+// Full system: null entries are omitted from display (rank not assigned).
+
+const VIRUS_DB = [
+  // ── CORONAVIRUSES ─────────────────────────────────────────────────────────
+  { name:"SARS-CoV-2",
+    classic:["Viruses","Nidovirales","Coronaviridae",null,"Betacoronavirus","SARS-CoV-2"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Nidovirales","Coronaviridae","Betacoronavirus","SARS-CoV-2"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Nidovirales","Cornidovirineae","Coronaviridae","Orthocoronavirinae","Betacoronavirus",null,"SARS-CoV-2"],
+    hint:"Caused the COVID-19 pandemic 2019–2022; spike protein binds ACE2.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/SARS-CoV-2_without_background.png/320px-SARS-CoV-2_without_background.png",caption:"SARS-CoV-2 (colorized TEM, CDC/NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:SARS-CoV-2_without_background.png",credit:"CDC/NIAID — public domain"}},
+  { name:"MERS-CoV",
+    classic:["Viruses","Nidovirales","Coronaviridae",null,"Betacoronavirus","MERS-CoV"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Nidovirales","Coronaviridae","Betacoronavirus","MERS-CoV"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Nidovirales","Cornidovirineae","Coronaviridae","Orthocoronavirinae","Betacoronavirus",null,"MERS-CoV"],
+    hint:"Dromedary camels are primary reservoir; ~35% case-fatality rate.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/MERS-CoV_particles_in_camel_isolate.jpg/320px-MERS-CoV_particles_in_camel_isolate.jpg",caption:"MERS-CoV (TEM, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:MERS-CoV_particles_in_camel_isolate.jpg",credit:"NIAID — CC BY 2.0"}},
+  { name:"SARS-CoV-1",
+    classic:["Viruses","Nidovirales","Coronaviridae",null,"Betacoronavirus","SARS-CoV-1"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Nidovirales","Coronaviridae","Betacoronavirus","SARS-CoV-1"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Nidovirales","Cornidovirineae","Coronaviridae","Orthocoronavirinae","Betacoronavirus",null,"SARS-CoV-1"],
+    hint:"Caused the 2003 SARS outbreak; horseshoe bats are reservoir.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/SARS-CoV-2_without_background.png/320px-SARS-CoV-2_without_background.png",caption:"Coronavirus virion (TEM, CDC/NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:SARS-CoV-2_without_background.png",credit:"CDC/NIAID — public domain"}},
+
+  // ── INFLUENZA ─────────────────────────────────────────────────────────────
+  { name:"Influenza A virus",
+    classic:["Viruses","Articulavirales","Orthomyxoviridae",null,"Alphainfluenzavirus","Influenza A virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Insthoviricetes","Articulavirales","Orthomyxoviridae","Alphainfluenzavirus","Influenza A virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Polyploviricotina","Insthoviricetes",null,"Articulavirales",null,"Orthomyxoviridae",null,"Alphainfluenzavirus",null,"Influenza A virus"],
+    hint:"Subtypes defined by hemagglutinin (H) and neuraminidase (N); pandemic potential.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/influenza-a-hk-1-68-h3n2-fam-2-greyscale-thumb.jpg",caption:"Influenza A H3N2 (TEM, UTMB Virus Images)",srcUrl:"https://www.utmb.edu/virusimages/VI/influenza-virus",credit:"UTMB — educational use permitted"}},
+  { name:"Influenza B virus",
+    classic:["Viruses","Articulavirales","Orthomyxoviridae",null,"Betainfluenzavirus","Influenza B virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Insthoviricetes","Articulavirales","Orthomyxoviridae","Betainfluenzavirus","Influenza B virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Polyploviricotina","Insthoviricetes",null,"Articulavirales",null,"Orthomyxoviridae",null,"Betainfluenzavirus",null,"Influenza B virus"],
+    hint:"Seasonal flu only in humans; no pandemic potential; two lineages (Victoria/Yamagata).",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/influenza-a-hk-1-68-h3n2-fam-2-greyscale-thumb.jpg",caption:"Influenza virion (TEM, UTMB Virus Images)",srcUrl:"https://www.utmb.edu/virusimages/VI/influenza-virus",credit:"UTMB — educational use permitted"}},
+
+  // ── FILOVIRUSES ───────────────────────────────────────────────────────────
+  { name:"Ebola virus",
+    classic:["Viruses","Mononegavirales","Filoviridae",null,"Orthoebolavirus","Ebola virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Filoviridae","Orthoebolavirus","Ebola virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Filoviridae",null,"Orthoebolavirus",null,"Ebola virus"],
+    hint:"Characteristic shepherd's-crook filamentous morphology; hemorrhagic fever; fruit bats suspected reservoir.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/ebola_virus_1.jpg",caption:"Ebola virus (TEM, UTMB Virus Images)",srcUrl:"https://www.utmb.edu/virusimages/VI/ebola",credit:"UTMB — educational use permitted"}},
+  { name:"Marburg virus",
+    classic:["Viruses","Mononegavirales","Filoviridae",null,"Orthomarburgvirus","Marburg virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Filoviridae","Orthomarburgvirus","Marburg virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Filoviridae",null,"Orthomarburgvirus",null,"Marburg virus"],
+    hint:"First emerged 1967 in Germany via African green monkeys; Egyptian fruit bats are reservoir.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/marburg_neg_stn_1967_2.jpg",caption:"Marburg virus 1967 (TEM, UTMB Virus Images)",srcUrl:"https://www.utmb.edu/virusimages/VI/marburg-virus",credit:"UTMB — educational use permitted"}},
+
+  // ── RHABDOVIRUS ───────────────────────────────────────────────────────────
+  { name:"Rabies lyssavirus",
+    classic:["Viruses","Mononegavirales","Rhabdoviridae",null,"Lyssavirus","Rabies lyssavirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Rhabdoviridae","Lyssavirus","Rabies lyssavirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Rhabdoviridae",null,"Lyssavirus",null,"Rabies lyssavirus"],
+    hint:"Bullet-shaped; retrograde axonal transport to brain; ~100% fatal without post-exposure prophylaxis.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/rabies_brain_section.jpg",caption:"Rabies virus in brain section (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/rabies-virus",credit:"UTMB — educational use permitted"}},
+
+  // ── PARAMYXOVIRUSES ───────────────────────────────────────────────────────
+  { name:"Measles morbillivirus",
+    classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Morbillivirus","Measles morbillivirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Morbillivirus","Measles morbillivirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Morbillivirus",null,"Measles morbillivirus"],
+    hint:"R₀ ~12–18; Koplik spots are pathognomonic; can cause subacute sclerosing panencephalitis years later.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/paramyx.jpg",caption:"Paramyxovirus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+  { name:"Mumps rubulavirus",
+    classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Rubulavirus","Mumps rubulavirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Rubulavirus","Mumps rubulavirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Rubulavirinae","Rubulavirus",null,"Mumps rubulavirus"],
+    hint:"Parotid gland swelling; can cause orchitis leading to infertility and sensorineural hearing loss.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/paramyx.jpg",caption:"Paramyxovirus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+  { name:"Nipah henipavirus",
+    classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Henipavirus","Nipah henipavirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Henipavirus","Nipah henipavirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Henipavirus",null,"Nipah henipavirus"],
+    hint:"Pteropus fruit bats are reservoir; WHO Priority Pathogen; person-to-person transmission documented.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Nipah_virus_TEM_lores.jpg/320px-Nipah_virus_TEM_lores.jpg",caption:"Nipah virus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Nipah_virus_TEM_lores.jpg",credit:"CDC/PHIL — public domain"}},
+  { name:"Hendra henipavirus",
+    classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Henipavirus","Hendra henipavirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Henipavirus","Hendra henipavirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Henipavirus",null,"Hendra henipavirus"],
+    hint:"Named after Hendra, Brisbane; bats → horses → humans; equine vaccine available.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Nipah_virus_TEM_lores.jpg/320px-Nipah_virus_TEM_lores.jpg",caption:"Henipavirus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Nipah_virus_TEM_lores.jpg",credit:"CDC/PHIL — public domain"}},
+
+  // ── PNEUMOVIRUSES ─────────────────────────────────────────────────────────
+  { name:"Respiratory syncytial virus",
+    classic:["Viruses","Mononegavirales","Pneumoviridae",null,"Orthopneumovirus","Respiratory syncytial virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Pneumoviridae","Orthopneumovirus","Respiratory syncytial virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Pneumoviridae",null,"Orthopneumovirus",null,"Respiratory syncytial virus"],
+    hint:"Leading cause of bronchiolitis in infants; mRNA vaccines approved 2023.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/RSV_Respiratory_Syncytial_Virus.jpg/320px-RSV_Respiratory_Syncytial_Virus.jpg",caption:"RSV particles (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:RSV_Respiratory_Syncytial_Virus.jpg",credit:"CDC — public domain"}},
+  { name:"Human metapneumovirus",
+    classic:["Viruses","Mononegavirales","Pneumoviridae",null,"Metapneumovirus","Human metapneumovirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Pneumoviridae","Metapneumovirus","Human metapneumovirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Pneumoviridae",null,"Metapneumovirus",null,"Human metapneumovirus"],
+    hint:"Second leading cause of infant lower respiratory infection after RSV; discovered 2001.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/RSV_Respiratory_Syncytial_Virus.jpg/320px-RSV_Respiratory_Syncytial_Virus.jpg",caption:"Pneumovirus (representative TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:RSV_Respiratory_Syncytial_Virus.jpg",credit:"CDC — public domain"}},
+
+  // ── FLAVIVIRUSES ──────────────────────────────────────────────────────────
+  { name:"Dengue virus",
+    classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","Dengue virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","Dengue virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"Dengue virus"],
+    hint:"Four serotypes; Aedes mosquito vector; secondary heterotypic infection risks severe dengue.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Dengue_virus_TEM.jpg/320px-Dengue_virus_TEM.jpg",caption:"Dengue virus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Dengue_virus_TEM.jpg",credit:"CDC/PHIL — public domain"}},
+  { name:"Zika virus",
+    classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","Zika virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","Zika virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"Zika virus"],
+    hint:"Congenital microcephaly; also sexually transmitted; Guillain-Barré syndrome association.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Zika_EM_CDC_20541.png/320px-Zika_EM_CDC_20541.png",caption:"Zika virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Zika_EM_CDC_20541.png",credit:"CDC — public domain"}},
+  { name:"West Nile virus",
+    classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","West Nile virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","West Nile virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"West Nile virus"],
+    hint:"Bird–Culex mosquito–human cycle; neuroinvasive disease in <1% of infections.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/West_Nile_virus_EM.jpg/320px-West_Nile_virus_EM.jpg",caption:"West Nile virus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:West_Nile_virus_EM.jpg",credit:"CDC/PHIL — public domain"}},
+  { name:"Yellow fever virus",
+    classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","Yellow fever virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","Yellow fever virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"Yellow fever virus"],
+    hint:"Jaundice gives it its name; 17D live attenuated vaccine (1930s); sylvatic monkey cycle.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Dengue_virus_TEM.jpg/320px-Dengue_virus_TEM.jpg",caption:"Flavivirus (representative TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Dengue_virus_TEM.jpg",credit:"CDC/PHIL — public domain"}},
+  { name:"Hepatitis C virus",
+    classic:["Viruses","Amarillovirales","Flaviviridae",null,"Hepacivirus","Hepatitis C virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Hepacivirus","Hepatitis C virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Hepacivirus",null,"Hepatitis C virus"],
+    hint:"Blood-borne; major cause of cirrhosis and hepatocellular carcinoma; cured by DAAs.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Hepatitis_C_virus_and_liver.jpg/320px-Hepatitis_C_virus_and_liver.jpg",caption:"Hepatitis C virus (NIAID illustration)",srcUrl:"https://commons.wikimedia.org/wiki/File:Hepatitis_C_virus_and_liver.jpg",credit:"NIAID — CC BY 2.0"}},
+
+  // ── PICORNAVIRUSES ────────────────────────────────────────────────────────
+  { name:"Poliovirus",
+    classic:["Viruses","Picornavirales","Picornaviridae","Enterovirinae","Enterovirus","Poliovirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Enterovirus","Poliovirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae","Enterovirinae","Enterovirus",null,"Poliovirus"],
+    hint:"Fecal-oral; irreversible flaccid paralysis; near-eradicated by global vaccination campaign.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/poliovirus_1-_purified.jpg",caption:"Purified poliovirus type 1 (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/poliovirus",credit:"UTMB — educational use permitted"}},
+  { name:"Hepatitis A virus",
+    classic:["Viruses","Picornavirales","Picornaviridae",null,"Hepatovirus","Hepatitis A virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Hepatovirus","Hepatitis A virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae",null,"Hepatovirus",null,"Hepatitis A virus"],
+    hint:"Fecal-oral; self-limiting; vaccine-preventable; no chronic state.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Hepatitis_A_Virus.jpg/320px-Hepatitis_A_Virus.jpg",caption:"Hepatitis A virus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Hepatitis_A_Virus.jpg",credit:"CDC/PHIL — public domain"}},
+  { name:"Rhinovirus A",
+    classic:["Viruses","Picornavirales","Picornaviridae","Enterovirinae","Enterovirus","Rhinovirus A"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Enterovirus","Rhinovirus A"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae","Enterovirinae","Enterovirus",null,"Rhinovirus A"],
+    hint:"Most common cause of the common cold; >100 serotypes; replicates optimally at ~33°C.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Human_rhinovirus_14.png/320px-Human_rhinovirus_14.png",caption:"Rhinovirus 14 crystal structure (PDB)",srcUrl:"https://commons.wikimedia.org/wiki/File:Human_rhinovirus_14.png",credit:"Wikimedia Commons — CC BY 3.0"}},
+  { name:"Enterovirus D68",
+    classic:["Viruses","Picornavirales","Picornaviridae","Enterovirinae","Enterovirus","Enterovirus D68"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Enterovirus","Enterovirus D68"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae","Enterovirinae","Enterovirus",null,"Enterovirus D68"],
+    hint:"Linked to acute flaccid myelitis in children; primarily respiratory; biennial US outbreaks.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Human_rhinovirus_14.png/320px-Human_rhinovirus_14.png",caption:"Enterovirus (picornavirus representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Human_rhinovirus_14.png",credit:"Wikimedia Commons — CC BY 3.0"}},
+
+  // ── CALICIVIRUS ───────────────────────────────────────────────────────────
+  { name:"Norovirus",
+    classic:["Viruses","Calicivirales","Caliciviridae",null,"Norovirus","Norovirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Calicivirales","Caliciviridae","Norovirus","Norovirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Calicivirales",null,"Caliciviridae","Norovirinae","Norovirus",null,"Norovirus"],
+    hint:"Leading cause of viral gastroenteritis; infamously stable on surfaces; highly infectious (ID₅₀ ~18 virions).",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Norovirus.jpg/320px-Norovirus.jpg",caption:"Norovirus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Norovirus.jpg",credit:"CDC/PHIL — public domain"}},
+
+  // ── TOGAVIRUSES / MATONAVIRUSES ────────────────────────────────────────────
+  { name:"Chikungunya virus",
+    classic:["Viruses","Martellivirales","Togaviridae",null,"Alphavirus","Chikungunya virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Togaviridae","Alphavirus","Chikungunya virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Togaviridae",null,"Alphavirus",null,"Chikungunya virus"],
+    hint:"Swahili: 'that which bends up'; Aedes vector; debilitating arthralgia lasting months to years.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Chikungunya_Virus_TEM.jpg/320px-Chikungunya_Virus_TEM.jpg",caption:"Chikungunya virus (TEM, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:Chikungunya_Virus_TEM.jpg",credit:"NIAID — CC BY 2.0"}},
+  { name:"Rubella virus",
+    classic:["Viruses","Martellivirales","Matonaviridae",null,"Rubivirus","Rubella virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Matonaviridae","Rubivirus","Rubella virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Matonaviridae",null,"Rubivirus",null,"Rubella virus"],
+    hint:"German measles; mild in children; congenital rubella syndrome causes deafness and cardiac defects.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Rubella_virus.jpg/320px-Rubella_virus.jpg",caption:"Rubella virus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Rubella_virus.jpg",credit:"CDC/PHIL — public domain"}},
+  { name:"Hepatitis E virus",
+    classic:["Viruses","Hepeviales","Hepeviridae",null,"Paslahepevirus","Hepatitis E virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Hepeviricetes","Hepeviales","Hepeviridae","Paslahepevirus","Hepatitis E virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Hepeviricetes",null,"Hepeviales",null,"Hepeviridae","Orthohepevirinae","Paslahepevirus",null,"Hepatitis E virus"],
+    hint:"Fecal-oral; up to 30% mortality in pregnancy; pigs are major zoonotic reservoir in industrialized nations.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Hepatitis_E_virus.jpg/320px-Hepatitis_E_virus.jpg",caption:"Hepatitis E virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Hepatitis_E_virus.jpg",credit:"CDC — public domain"}},
+  { name:"Tobacco mosaic virus",
+    classic:["Viruses","Martellivirales","Virgaviridae",null,"Tobamovirus","Tobacco mosaic virus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Virgaviridae","Tobamovirus","Tobacco mosaic virus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Virgaviridae",null,"Tobamovirus",null,"Tobacco mosaic virus"],
+    hint:"First virus ever discovered (Beijerinck 1898); rigid helical rod; infects tobacco and Solanaceae.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Tobacco mosaic virus (TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia — CC BY-SA 3.0"}},
+
+  // ── BUNYAVIRUSES ──────────────────────────────────────────────────────────
+  { name:"Lassa mammarenavirus",
+    classic:["Viruses","Bunyavirales","Arenaviridae",null,"Mammarenavirus","Lassa mammarenavirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Arenaviridae","Mammarenavirus","Lassa mammarenavirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Arenaviridae","Mammarenavirinae","Mammarenavirus",null,"Lassa mammarenavirus"],
+    hint:"Mastomys rat reservoir; endemic in West Africa; 300,000–500,000 cases/year estimated.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/lassa_virus_thin_section_low_mag_thumbnail.jpg",caption:"Lassa virus (TEM, UTMB Virus Images)",srcUrl:"https://www.utmb.edu/virusimages/VI/lassa-virus",credit:"UTMB — educational use permitted"}},
+  { name:"Hantavirus",
+    classic:["Viruses","Bunyavirales","Hantaviridae",null,"Orthohantavirus","Hantavirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Hantaviridae","Orthohantavirus","Hantavirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Hantaviridae","Mammantavirinae","Orthohantavirus",null,"Hantavirus"],
+    hint:"Inhaled rodent excreta; no person-to-person transmission; causes HPS in Americas and HFRS in Eurasia.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/sm_sin_nombre_virus-greyscale-from-cynthia-7-2022-copy.jpg",caption:"Sin Nombre hantavirus (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/sin-nombre-virus-(hantavirus)",credit:"UTMB — educational use permitted"}},
+  { name:"Rift Valley fever phlebovirus",
+    classic:["Viruses","Bunyavirales","Phenuiviridae",null,"Phlebovirus","Rift Valley fever phlebovirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Phenuiviridae","Phlebovirus","Rift Valley fever phlebovirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Phenuiviridae","Phlebovirinae","Phlebovirus",null,"Rift Valley fever phlebovirus"],
+    hint:"Mosquito-borne; primarily livestock; epizootics trigger human hemorrhagic fever outbreaks in Africa.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/rift_valley_fever_virus.jpg",caption:"Rift Valley fever virus (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/rift-valley-fever-virus",credit:"UTMB — educational use permitted"}},
+  { name:"Crimean-Congo hemorrhagic fever orthonairovirus",
+    classic:["Viruses","Bunyavirales","Nairoviridae",null,"Orthonairovirus","Crimean-Congo hemorrhagic fever orthonairovirus"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Nairoviridae","Orthonairovirus","Crimean-Congo hemorrhagic fever orthonairovirus"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Nairoviridae","Orthonairoviridae","Orthonairovirus",null,"Crimean-Congo hemorrhagic fever orthonairovirus"],
+    hint:"Tick-borne (Hyalomma); widest geographic range of any tick-borne hemorrhagic fever virus.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Crimean-Congo_hemorrhagic_fever_virus.jpg/320px-Crimean-Congo_hemorrhagic_fever_virus.jpg",caption:"CCHF virus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Crimean-Congo_hemorrhagic_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
+
+  // ── REOVIRUSES ────────────────────────────────────────────────────────────
+  { name:"Rotavirus A",
+    classic:["Viruses","Reovirales","Sedoreoviridae",null,"Rotavirus","Rotavirus A"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Duplornaviricota","Resentoviricetes","Reovirales","Sedoreoviridae","Rotavirus","Rotavirus A"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Duplornaviricota",null,"Resentoviricetes",null,"Reovirales",null,"Sedoreoviridae","Sedoreoviridae","Rotavirus",null,"Rotavirus A"],
+    hint:"11-segment dsRNA genome; wheel-like TEM morphology; leading cause of childhood diarrheal death globally.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/human_rotavirus_thin_section.jpg",caption:"Human rotavirus (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/human-rotavirus",credit:"UTMB — educational use permitted"}},
+
+  // ── MS2 PHAGE ─────────────────────────────────────────────────────────────
+  { name:"MS2 bacteriophage",
+    classic:["Viruses","Norzivirales","Fiersviridae",null,"Allolevivirus","MS2 bacteriophage"],
+    simple: ["Viruses","Riboviria","Orthornavirae","Lenarviricota","Allassoviricetes","Norzivirales","Fiersviridae","Allolevivirus","MS2 bacteriophage"],
+    full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Lenarviricota",null,"Allassoviricetes",null,"Norzivirales",null,"Fiersviridae",null,"Allolevivirus",null,"MS2 bacteriophage"],
+    hint:"Among first genomes fully sequenced (1976); RNA phage; icosahedral; infects E. coli via F pilus.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/MS2_phage_%28Wikimedia%29.png/320px-MS2_phage_%28Wikimedia%29.png",caption:"MS2 phage (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:MS2_phage_(Wikimedia).png",credit:"Wikimedia Commons — CC BY-SA 4.0"}},
+
+  // ── RETROVIRUSES ──────────────────────────────────────────────────────────
+  { name:"HIV-1",
+    classic:["Viruses","Ortervirales","Retroviridae",null,"Lentivirus","HIV-1"],
+    simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Retroviridae","Lentivirus","HIV-1"],
+    full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Retroviridae","Orthoretrovirinae","Lentivirus",null,"HIV-1"],
+    hint:"Reverse transcribes RNA → DNA; integrates as provirus; depletes CD4+ T cells causing AIDS.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/HIV-budding-Color.jpg/320px-HIV-budding-Color.jpg",caption:"HIV-1 budding from T cell (colorized SEM, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:HIV-budding-Color.jpg",credit:"NIAID — public domain"}},
+  { name:"HIV-2",
+    classic:["Viruses","Ortervirales","Retroviridae",null,"Lentivirus","HIV-2"],
+    simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Retroviridae","Lentivirus","HIV-2"],
+    full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Retroviridae","Orthoretrovirinae","Lentivirus",null,"HIV-2"],
+    hint:"Less transmissible than HIV-1; slower progression to AIDS; predominantly West Africa.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/HIV-budding-Color.jpg/320px-HIV-budding-Color.jpg",caption:"HIV budding (colorized SEM, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:HIV-budding-Color.jpg",credit:"NIAID — public domain"}},
+  { name:"Hepatitis B virus",
+    classic:["Viruses","Blubervirales","Hepadnaviridae",null,"Orthohepadnavirus","Hepatitis B virus"],
+    simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Blubervirales","Hepadnaviridae","Orthohepadnavirus","Hepatitis B virus"],
+    full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Blubervirales",null,"Hepadnaviridae",null,"Orthohepadnavirus",null,"Hepatitis B virus"],
+    hint:"Partial dsDNA; reverse transcription; Dane particles; #1 cause of viral hepatocellular carcinoma.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Hepatitis_B_Virus.jpg/320px-Hepatitis_B_Virus.jpg",caption:"Hepatitis B Dane particles (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Hepatitis_B_Virus.jpg",credit:"CDC — public domain"}},
+  { name:"Cauliflower mosaic virus",
+    classic:["Viruses","Ortervirales","Caulimoviridae",null,"Caulimovirus","Cauliflower mosaic virus"],
+    simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Caulimoviridae","Caulimovirus","Cauliflower mosaic virus"],
+    full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Caulimoviridae","Caulimovirinae","Caulimovirus",null,"Cauliflower mosaic virus"],
+    hint:"Plant pararetrovirus; 35S promoter is the most-used regulatory element in plant biotechnology.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Cauliflower_mosaic_virus.jpg/320px-Cauliflower_mosaic_virus.jpg",caption:"Cauliflower mosaic virus (TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Cauliflower_mosaic_virus.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
+  { name:"HTLV-1",
+    classic:["Viruses","Ortervirales","Retroviridae",null,"Deltaretrovirus","HTLV-1"],
+    simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Retroviridae","Deltaretrovirus","HTLV-1"],
+    full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Retroviridae","Orthoretrovirinae","Deltaretrovirus",null,"HTLV-1"],
+    hint:"Infects CD4+ T cells; causes adult T-cell leukemia/lymphoma and HTLV-1-associated myelopathy.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/HIV-budding-Color.jpg/320px-HIV-budding-Color.jpg",caption:"Retrovirus (representative, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:HIV-budding-Color.jpg",credit:"NIAID — public domain"}},
+  { name:"Murine leukemia virus",
+    classic:["Viruses","Ortervirales","Retroviridae",null,"Gammaretrovirus","Murine leukemia virus"],
+    simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Retroviridae","Gammaretrovirus","Murine leukemia virus"],
+    full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Retroviridae","Orthoretrovirinae","Gammaretrovirus",null,"Murine leukemia virus"],
+    hint:"Classic mouse retrovirus; foundational model for oncogenesis; endogenous copies in mouse genome.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/HIV-budding-Color.jpg/320px-HIV-budding-Color.jpg",caption:"Retrovirus (representative, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:HIV-budding-Color.jpg",credit:"NIAID — public domain"}},
+
+  // ── HERPESVIRUSES ─────────────────────────────────────────────────────────
+  { name:"Human alphaherpesvirus 1",
+    classic:["Viruses","Herpesvirales","Herpesviridae","Alphaherpesvirinae","Simplexvirus","Human alphaherpesvirus 1"],
+    simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Simplexvirus","Human alphaherpesvirus 1"],
+    full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Alphaherpesvirinae","Simplexvirus",null,"Human alphaherpesvirus 1"],
+    hint:"HSV-1; oral cold sores; latent in trigeminal ganglia; can rarely cause fatal encephalitis.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/herpes_simplex_virus.jpg",caption:"Herpes simplex virus (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/herpes-simplex-virus",credit:"UTMB — educational use permitted"}},
+  { name:"Human alphaherpesvirus 2",
+    classic:["Viruses","Herpesvirales","Herpesviridae","Alphaherpesvirinae","Simplexvirus","Human alphaherpesvirus 2"],
+    simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Simplexvirus","Human alphaherpesvirus 2"],
+    full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Alphaherpesvirinae","Simplexvirus",null,"Human alphaherpesvirus 2"],
+    hint:"HSV-2; primary genital herpes; latent in sacral dorsal root ganglia.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/herpes_simplex_virus.jpg",caption:"Herpes simplex virus (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/herpes-simplex-virus",credit:"UTMB — educational use permitted"}},
+  { name:"Human alphaherpesvirus 3",
+    classic:["Viruses","Herpesvirales","Herpesviridae","Alphaherpesvirinae","Varicellovirus","Human alphaherpesvirus 3"],
+    simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Varicellovirus","Human alphaherpesvirus 3"],
+    full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Alphaherpesvirinae","Varicellovirus",null,"Human alphaherpesvirus 3"],
+    hint:"VZV; chickenpox (primary) → shingles (reactivation from dorsal root ganglia).",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/herpes.jpg",caption:"Herpesvirus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+  { name:"Human betaherpesvirus 5",
+    classic:["Viruses","Herpesvirales","Herpesviridae","Betaherpesvirinae","Cytomegalovirus","Human betaherpesvirus 5"],
+    simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Cytomegalovirus","Human betaherpesvirus 5"],
+    full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Betaherpesvirinae","Cytomegalovirus",null,"Human betaherpesvirus 5"],
+    hint:"CMV; largest human herpesvirus genome; dangerous in immunocompromised patients and congenitally.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Cytomegalovirus_CMV.jpg/320px-Cytomegalovirus_CMV.jpg",caption:"Cytomegalovirus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Cytomegalovirus_CMV.jpg",credit:"CDC/PHIL — public domain"}},
+  { name:"Human gammaherpesvirus 4",
+    classic:["Viruses","Herpesvirales","Herpesviridae","Gammaherpesvirinae","Lymphocryptovirus","Human gammaherpesvirus 4"],
+    simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Lymphocryptovirus","Human gammaherpesvirus 4"],
+    full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Gammaherpesvirinae","Lymphocryptovirus",null,"Human gammaherpesvirus 4"],
+    hint:"EBV; infectious mononucleosis; Burkitt lymphoma; nasopharyngeal carcinoma; latent in B cells.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Epstein-Barr_Virus.jpg/320px-Epstein-Barr_Virus.jpg",caption:"Epstein-Barr virus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Epstein-Barr_Virus.jpg",credit:"CDC/PHIL — public domain"}},
+  { name:"Human gammaherpesvirus 8",
+    classic:["Viruses","Herpesvirales","Herpesviridae","Gammaherpesvirinae","Rhadinovirus","Human gammaherpesvirus 8"],
+    simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Rhadinovirus","Human gammaherpesvirus 8"],
+    full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Gammaherpesvirinae","Rhadinovirus",null,"Human gammaherpesvirus 8"],
+    hint:"KSHV; Kaposi sarcoma; primary effusion lymphoma; major AIDS-defining malignancy.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/herpes.jpg",caption:"Herpesvirus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+
+  // ── POXVIRUSES ────────────────────────────────────────────────────────────
+  { name:"Variola virus",
+    classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Orthopoxvirus","Variola virus"],
+    simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Orthopoxvirus","Variola virus"],
+    full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Orthopoxvirus",null,"Variola virus"],
+    hint:"Causative agent of smallpox; declared eradicated by WHO 1980; stocks held only at CDC and VECTOR.",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/smallpox_virus.jpg",caption:"Smallpox (variola) virus (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/smallpox-variola-virus",credit:"UTMB — educational use permitted"}},
+  { name:"Vaccinia virus",
+    classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Orthopoxvirus","Vaccinia virus"],
+    simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Orthopoxvirus","Vaccinia virus"],
+    full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Orthopoxvirus",null,"Vaccinia virus"],
+    hint:"Used as live smallpox vaccine; most complex animal virus; exact origin still debated.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/pox.jpg",caption:"Pox virus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+  { name:"Mpox virus",
+    classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Orthopoxvirus","Mpox virus"],
+    simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Orthopoxvirus","Mpox virus"],
+    full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Orthopoxvirus",null,"Mpox virus"],
+    hint:"Official species name for monkeypox virus; WHO declared PHEIC in 2022 and again for clade Ib in 2024.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/pox.jpg",caption:"Orthopoxvirus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+  { name:"Cowpox virus",
+    classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Orthopoxvirus","Cowpox virus"],
+    simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Orthopoxvirus","Cowpox virus"],
+    full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Orthopoxvirus",null,"Cowpox virus"],
+    hint:"Jenner (1796) used cowpox material from milkmaid Sarah Nelmes to invent vaccination.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/pox.jpg",caption:"Pox virus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+
+  // ── GIANT VIRUSES ─────────────────────────────────────────────────────────
+  { name:"Mimivirus",
+    classic:["Viruses","Imitervirales","Mimiviridae",null,"Mimivirus","Mimivirus"],
+    simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Megaviricetes","Imitervirales","Mimiviridae","Mimivirus","Mimivirus"],
+    full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Megaviricetes",null,"Imitervirales",null,"Mimiviridae","Mimivirinae","Mimivirus",null,"Mimivirus"],
+    hint:"Discovered 2003; larger than many bacteria; genome encodes aminoacyl-tRNA synthetases blurring life definition.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Mimivirus.jpg/320px-Mimivirus.jpg",caption:"Mimivirus (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:Mimivirus.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
+  { name:"Pandoravirus salinus",
+    classic:["Viruses","Imitervirales","Pandoraviridae",null,"Pandoravirus","Pandoravirus salinus"],
+    simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Megaviricetes","Imitervirales","Pandoraviridae","Pandoravirus","Pandoravirus salinus"],
+    full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Megaviricetes",null,"Imitervirales",null,"Pandoraviridae",null,"Pandoravirus",null,"Pandoravirus salinus"],
+    hint:"Largest known virus genome (~2.5 Mb); ~93% of genes have no known homologs; discovered in Chile 2013.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Pandoravirus_salinus.jpg/320px-Pandoravirus_salinus.jpg",caption:"Pandoravirus salinus (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:Pandoravirus_salinus.jpg",credit:"Wikimedia Commons — CC BY-SA 4.0"}},
+
+  // ── ADENOVIRUS ────────────────────────────────────────────────────────────
+  { name:"Human adenovirus 5",
+    classic:["Viruses","Rowavirales","Adenoviridae",null,"Mastadenovirus","Human adenovirus 5"],
+    simple: ["Viruses","Varidnaviria","Bamfordvirae","Preplasmiviricota","Tectiliviricetes","Rowavirales","Adenoviridae","Mastadenovirus","Human adenovirus 5"],
+    full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Preplasmiviricota",null,"Tectiliviricetes",null,"Rowavirales",null,"Adenoviridae","Mastadenovirinae","Mastadenovirus",null,"Human adenovirus 5"],
+    hint:"Icosahedral with fiber projections; common respiratory pathogen; widely used vaccine vector (COVID-19, HIV trials).",
+    image:{src:"https://www.utmb.edu/images/librariesprovider266/micrographs/human_adenovirus_5_thumbnail.jpg",caption:"Human adenovirus 5 (TEM, UTMB)",srcUrl:"https://www.utmb.edu/virusimages/VI/human-adenovirus-5",credit:"UTMB — educational use permitted"}},
+
+  // ── PAPILLOMAVIRUSES / POLYOMAVIRUSES / PARVOVIRUSES ───────────────────────
+  { name:"Human papillomavirus type 16",
+    classic:["Viruses","Zurhausenvirales","Papillomaviridae",null,"Alphapapillomavirus","Human papillomavirus type 16"],
+    simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Papovaviricetes","Zurhausenvirales","Papillomaviridae","Alphapapillomavirus","Human papillomavirus type 16"],
+    full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Papovaviricetes",null,"Zurhausenvirales",null,"Papillomaviridae","Firstpapillomavirinae","Alphapapillomavirus",null,"Human papillomavirus type 16"],
+    hint:"High-risk HPV; integrates to disrupt p53/Rb; primary cause of cervical cancer; 9-valent vaccine available.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/papova.jpg",caption:"Papovavirus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+  { name:"Human papillomavirus type 18",
+    classic:["Viruses","Zurhausenvirales","Papillomaviridae",null,"Alphapapillomavirus","Human papillomavirus type 18"],
+    simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Papovaviricetes","Zurhausenvirales","Papillomaviridae","Alphapapillomavirus","Human papillomavirus type 18"],
+    full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Papovaviricetes",null,"Zurhausenvirales",null,"Papillomaviridae","Firstpapillomavirinae","Alphapapillomavirus",null,"Human papillomavirus type 18"],
+    hint:"Second most common high-risk HPV; ~15% of cervical cancers; adenocarcinoma more than HPV16.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/papova.jpg",caption:"Papovavirus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+  { name:"BK polyomavirus",
+    classic:["Viruses","Zurhausenvirales","Polyomaviridae",null,"Alphapolyomavirus","BK polyomavirus"],
+    simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Papovaviricetes","Zurhausenvirales","Polyomaviridae","Alphapolyomavirus","BK polyomavirus"],
+    full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Papovaviricetes",null,"Zurhausenvirales",null,"Polyomaviridae",null,"Alphapolyomavirus",null,"BK polyomavirus"],
+    hint:"Named after patient B.K.; latent in kidneys; reactivates causing hemorrhagic cystitis in renal transplant recipients.",
+    image:{src:"https://www.dshs.texas.gov/sites/default/files/papova.jpg",caption:"Polyomavirus (TEM, Texas DSHS)",srcUrl:"https://www.dshs.texas.gov/laboratory-services/programs-laboratories/microbiology-unit/viral-isolation/viral-isolation-electron-micrographs",credit:"Texas DSHS — public domain"}},
+  { name:"Adeno-associated virus 2",
+    classic:["Viruses","Piccovirales","Parvoviridae",null,"Dependoparvovirus","Adeno-associated virus 2"],
+    simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Quintoviricetes","Piccovirales","Parvoviridae","Dependoparvovirus","Adeno-associated virus 2"],
+    full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Quintoviricetes",null,"Piccovirales",null,"Parvoviridae","Parvovirinae","Dependoparvovirus",null,"Adeno-associated virus 2"],
+    hint:"Requires helper virus; non-pathogenic; most widely used gene therapy vector (Luxturna, Zolgensma).",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/AAV.jpg/320px-AAV.jpg",caption:"AAV2 (cryo-EM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:AAV.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
+  { name:"Human parvovirus B19",
+    classic:["Viruses","Piccovirales","Parvoviridae",null,"Erythroparvovirus","Human parvovirus B19"],
+    simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Quintoviricetes","Piccovirales","Parvoviridae","Erythroparvovirus","Human parvovirus B19"],
+    full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Quintoviricetes",null,"Piccovirales",null,"Parvoviridae","Parvovirinae","Erythroparvovirus",null,"Human parvovirus B19"],
+    hint:"Fifth disease (slapped-cheek rash); aplastic crisis in sickle-cell disease; hydrops fetalis in pregnancy.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/AAV.jpg/320px-AAV.jpg",caption:"Parvovirus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:AAV.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
+
+  // ── BACTERIOPHAGES ────────────────────────────────────────────────────────
+  { name:"T4 bacteriophage",
+    classic:["Viruses","Caudovirales","Straboviridae",null,"Tequatrovirus","T4 bacteriophage"],
+    simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Caudoviricetes","Caudovirales","Straboviridae","Tequatrovirus","T4 bacteriophage"],
+    full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Caudoviricetes",null,"Caudovirales",null,"Straboviridae","Tevenvirinae","Tequatrovirus",null,"T4 bacteriophage"],
+    hint:"Iconic contractile-tail myovirus; lunar-lander morphology; infects E. coli; 170 kb genome.",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"T4 bacteriophage (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
+  { name:"Lambda phage",
+    classic:["Viruses","Caudovirales","Drexlerviridae",null,"Lambdavirus","Lambda phage"],
+    simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Caudoviricetes","Caudovirales","Drexlerviridae","Lambdavirus","Lambda phage"],
+    full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Caudoviricetes",null,"Caudovirales",null,"Drexlerviridae","Lambdavirinae","Lambdavirus",null,"Lambda phage"],
+    hint:"Model temperate phage; lytic/lysogenic switch is a classic genetic regulation model (Ptashne).",
+    image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/PhageLambda.jpg/320px-PhageLambda.jpg",caption:"Lambda phage (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:PhageLambda.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
+];
+
+// ─── GAME STATE ────────────────────────────────────────────────────────────
+let target = null, guesses = [], guessedNames = new Set(), gameOver = false, hintVisible = false;
+
+// ─── THEME ─────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const html = document.documentElement;
+  const dark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', dark ? 'light' : 'dark');
+  const icon = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+  if (dark) {
+    icon.setAttribute('stroke','currentColor'); icon.setAttribute('fill','none'); icon.setAttribute('stroke-width','2');
+    icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+    label.textContent = 'Dark mode';
+  } else {
+    icon.removeAttribute('stroke'); icon.removeAttribute('stroke-width'); icon.setAttribute('fill','currentColor');
+    icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    label.textContent = 'Light mode';
+  }
+  renderDendro(gameOver);
+}
+
+// ─── MODE ──────────────────────────────────────────────────────────────────
+function setMode(m) {
+  currentMode = m;
+  document.querySelectorAll('.mode-pill').forEach(p => p.classList.toggle('active', p.dataset.mode === m));
+  document.getElementById('mode-name').textContent = MODE_META[m].label;
+  initGame();
+}
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+function getLineage(v) { return v[currentMode].filter(x => x !== null); }
+function getAllLineages(v) {
+  return { classic: v.classic.filter(x=>x!==null), simple: v.simple.filter(x=>x!==null), full: v.full.filter(x=>x!==null) };
+}
+
+function sharedDepth(linA, linB) {
+  let d = 0, len = Math.min(linA.length, linB.length);
+  for (let i = 0; i < len; i++) { if (linA[i]===linB[i]) d=i+1; else break; }
+  return d;
+}
+
+function wikiLink(taxon) {
+  const slug = WIKI[taxon];
+  if (!slug) return escHtml(taxon);
+  return `<a href="https://en.wikipedia.org/wiki/${slug}" target="_blank" rel="noopener noreferrer">${escHtml(taxon)}</a>`;
+}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('status-msg');
+  el.innerHTML = msg; el.className = 'status-msg '+(cls||'');
+}
+
+function depClass(d, won) {
+  if (won) return 'dep-win';
+  return ['dep-0','dep-0','dep-1','dep-2','dep-3','dep-4','dep-5','dep-6'][Math.min(d,7)];
+}
+
+// ─── GAME INIT ─────────────────────────────────────────────────────────────
+function initGame() {
+  target = VIRUS_DB[Math.floor(Math.random() * VIRUS_DB.length)];
+  guesses = []; guessedNames = new Set(); gameOver = false; hintVisible = false;
+  document.getElementById('guesses-count').textContent = MAX_GUESSES;
+  document.getElementById('guesses-pill').className = 'pill';
+  document.getElementById('status-msg').textContent = '';
+  document.getElementById('status-msg').className = 'status-msg';
+  document.getElementById('end-banner').className = 'end-banner';
+  document.getElementById('dendro-card').className = 'dendro-card';
+  document.getElementById('log-wrap').innerHTML = '';
+  document.getElementById('hint-box').className = 'collapsible';
+  document.getElementById('hint-box').innerHTML = '';
+  document.getElementById('hint-btn').textContent = 'Show hint';
+  document.getElementById('guess-input').value = '';
+  document.getElementById('guess-input').disabled = false;
+  document.getElementById('guess-btn').disabled = false;
+  document.getElementById('ac-list').classList.remove('show');
+  document.getElementById('virus-img-wrap').className = 'virus-img-wrap';
+  document.getElementById('tax-compare').className = 'tax-compare';
+}
+
+// ─── AUTOCOMPLETE ──────────────────────────────────────────────────────────
+let acMatches = [], acSel = -1;
+const inputEl = document.getElementById('guess-input');
+const acEl    = document.getElementById('ac-list');
+
+inputEl.addEventListener('input', () => {
+  const q = inputEl.value.trim().toLowerCase();
+  acEl.innerHTML = ''; acSel = -1;
+  if (!q) { acEl.classList.remove('show'); return; }
+  acMatches = VIRUS_DB.filter(v => v.name.toLowerCase().includes(q) && !guessedNames.has(v.name)).slice(0,9);
+  if (!acMatches.length) { acEl.classList.remove('show'); return; }
+  acMatches.forEach((v,i) => {
+    const d = document.createElement('div');
+    d.className = 'ac-item'; d.setAttribute('role','option');
+    const idx = v.name.toLowerCase().indexOf(q);
+    const hl = idx<0 ? escHtml(v.name) :
+      escHtml(v.name.slice(0,idx))+'<b style="color:var(--teal)">'+escHtml(v.name.slice(idx,idx+q.length))+'</b>'+escHtml(v.name.slice(idx+q.length));
+    const lin = getLineage(v);
+    d.innerHTML = `<span class="ac-name">${hl}</span><span class="ac-rank">${escHtml(lin.slice(-2).join(' › '))}</span>`;
+    d.addEventListener('mousedown', e => { e.preventDefault(); selectAC(i); });
+    acEl.appendChild(d);
+  });
+  acEl.classList.add('show');
+});
+
+function selectAC(i) {
+  if (i<0||i>=acMatches.length) return;
+  inputEl.value = acMatches[i].name; acEl.classList.remove('show');
+}
+
+inputEl.addEventListener('keydown', e => {
+  const items = acEl.querySelectorAll('.ac-item');
+  if (e.key==='ArrowDown') { e.preventDefault(); acSel=Math.min(acSel+1,items.length-1); items.forEach((el,i)=>el.classList.toggle('sel',i===acSel)); }
+  else if (e.key==='ArrowUp') { e.preventDefault(); acSel=Math.max(acSel-1,0); items.forEach((el,i)=>el.classList.toggle('sel',i===acSel)); }
+  else if (e.key==='Enter') { e.preventDefault(); if (acSel>=0&&acEl.classList.contains('show')) selectAC(acSel); else submitGuess(); }
+  else if (e.key==='Escape') acEl.classList.remove('show');
+});
+document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) acEl.classList.remove('show'); });
+
+// ─── GUESS LOGIC ──────────────────────────────────────────────────────────
+function submitGuess() {
+  if (gameOver) return;
+  const raw = inputEl.value.trim();
+  const virus = VIRUS_DB.find(v => v.name.toLowerCase()===raw.toLowerCase());
+  if (!virus) { setStatus('Unknown virus — pick from the suggestions.','warn'); return; }
+  if (guessedNames.has(virus.name)) { setStatus('Already guessed!','warn'); return; }
+
+  guessedNames.add(virus.name); guesses.push(virus);
+  inputEl.value = ''; acEl.classList.remove('show');
+
+  const tLin = getLineage(target), gLin = getLineage(virus);
+  const depth = sharedDepth(gLin, tLin);
+  const remaining = MAX_GUESSES - guesses.length;
+  document.getElementById('guesses-count').textContent = remaining;
+  const pill = document.getElementById('guesses-pill');
+  if (remaining<=3) pill.className='pill danger'; else if (remaining<=7) pill.className='pill warn';
+
+  addGuessCard(virus, depth, guesses.length, tLin);
+  renderDendro(false);
+
+  if (virus.name===target.name) endGame(true);
+  else if (guesses.length>=MAX_GUESSES) endGame(false);
+  else setStatus(`Deepest shared taxon: ${wikiLink(tLin[depth-1]||'—')}`, '');
+}
+
+function addGuessCard(virus, depth, num, tLin) {
+  const log = document.getElementById('log-wrap');
+  const card = document.createElement('div');
+  card.className = 'guess-card';
+  const won = virus.name===target.name;
+  const bc  = depClass(depth, won);
+  const sharedTaxon = won ? '✓ correct!' : (depth>0 ? tLin[depth-1] : 'none');
+  const inner = won ? '✓ correct!' : wikiLink(sharedTaxon);
+  card.innerHTML = `<span class="g-num">${num}.</span><span class="g-name">${escHtml(virus.name)}</span><span class="g-badge ${bc}">${inner}</span>`;
+  log.insertBefore(card, log.firstChild);
+}
+
+function endGame(won) {
+  gameOver = true;
+  inputEl.disabled = true;
+  document.getElementById('guess-btn').disabled = true;
+
+  const banner = document.getElementById('end-banner');
+  if (won) {
+    banner.className = 'end-banner show';
+    document.getElementById('end-title').textContent = '🦠 INFECTION IDENTIFIED!';
+    document.getElementById('end-sub').innerHTML = `The mystery virus was <b>${escHtml(target.name)}</b> — identified in ${guesses.length} guess${guesses.length>1?'es':''}!`;
+    setStatus('','good');
+  } else {
+    banner.className = 'end-banner show lose';
+    document.getElementById('end-title').textContent = 'THE VIRUS WINS.';
+    document.getElementById('end-sub').innerHTML = `The mystery virus was <b>${escHtml(target.name)}</b>. Better luck next time!`;
+    setStatus('','bad');
+  }
+
+  // Image (external link only)
+  if (target.image) {
+    const img = document.getElementById('virus-img');
+    img.src = target.image.src; img.alt = target.name + ' electron micrograph';
+    img.onerror = () => { document.getElementById('virus-img-wrap').style.display='none'; };
+    document.getElementById('virus-img-caption').innerHTML =
+      `${escHtml(target.image.caption)} — <a href="${target.image.srcUrl}" target="_blank" rel="noopener noreferrer">${escHtml(target.image.credit)}</a>`;
+    document.getElementById('virus-img-wrap').className = 'virus-img-wrap show';
+  }
+
+  // 3-column taxonomy comparison
+  buildTaxCompare();
+
+  renderDendro(true);
+}
+
+// ─── TAXONOMY COMPARE ─────────────────────────────────────────────────────
+function buildTaxCompare() {
+  const lins = getAllLineages(target);
+
+  // Classic 5-rank schema: order, family, subfamily, genus, species
+  // Simple 8-rank: realm, kingdom, phylum, class, order, family, genus, species
+  // Full 15-rank: all non-null entries
+
+  const classicSchema = [
+    {rank:'order',     idx:1},
+    {rank:'family',    idx:2},
+    {rank:'subfamily', idx:3},
+    {rank:'genus',     idx:4},
+    {rank:'species',   idx:5},
+  ];
+  const simpleSchema = [
+    {rank:'realm',   idx:1},
+    {rank:'kingdom', idx:2},
+    {rank:'phylum',  idx:3},
+    {rank:'class',   idx:4},
+    {rank:'order',   idx:5},
+    {rank:'family',  idx:6},
+    {rank:'genus',   idx:7},
+    {rank:'species', idx:8},
+  ];
+  // Full: build from raw lineage (with nulls) using position → rank mapping
+  const FULL_RANK_POSITIONS = [
+    'root','realm','subrealm','kingdom','subkingdom','phylum','subphylum',
+    'class','subclass','order','suborder','family','subfamily','genus','subgenus','species'
+  ];
+  const fullRaw = target.full; // includes nulls
+
+  function colRows(schema, linFiltered) {
+    return schema.map(({rank, idx}) => {
+      const val = linFiltered[idx];
+      return {rank, val: val||null};
+    });
+  }
+
+  function fullRows() {
+    return FULL_RANK_POSITIONS.slice(1).map((rank, i) => {
+      const val = fullRaw[i+1]; // offset by 1 (position 0 = root)
+      return {rank, val: val||null};
+    });
+  }
+
+  function renderCol(colId, rows) {
+    const col = document.getElementById(colId);
+    // Remove previous rows (keep header)
+    while (col.children.length > 1) col.removeChild(col.lastChild);
+    rows.forEach(({rank, val}) => {
+      if (colId==='col-full' && val===null) return; // skip empty full-rank rows
+      const row = document.createElement('div');
+      row.className = 'tax-row';
+      const valHtml = val
+        ? `<span class="tax-val">${wikiLink(val)}</span>`
+        : `<span class="tax-val missing">—</span>`;
+      row.innerHTML = `<span class="tax-rank">${rank}</span>${valHtml}`;
+      col.appendChild(row);
+    });
+  }
+
+  renderCol('col-classic', colRows(classicSchema, lins.classic));
+  renderCol('col-simple',  colRows(simpleSchema,  lins.simple));
+  renderCol('col-full',    fullRows());
+
+  document.getElementById('tax-compare').className = 'tax-compare show';
+}
+
+// ─── DENDROGRAM ───────────────────────────────────────────────────────────
+function renderDendro(showTarget) {
+  const card = document.getElementById('dendro-card');
+  if (!guesses.length && !showTarget) { card.classList.remove('show'); return; }
+  card.classList.add('show');
+
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  const C = {
+    teal:  dark?'#00e6b4':'#007a5e', purple:dark?'#8b5cf6':'#6d28d9',
+    amber: dark?'#f59e0b':'#b45309', text:dark?'#7ab5a0':'#2a6450',
+    nfRoot:dark?'rgba(139,92,246,.14)':'rgba(109,40,217,.07)',
+    nsRoot:dark?'rgba(139,92,246,.55)':'rgba(100,40,200,.4)',
+    nfInner:dark?'rgba(0,180,140,.07)':'rgba(0,130,90,.05)',
+    nsInner:dark?'rgba(0,230,180,.2)':'rgba(0,130,90,.22)',
+    nfLeaf:dark?'rgba(245,158,11,.14)':'rgba(180,100,0,.09)',
+    nsLeaf:dark?'rgba(245,158,11,.6)':'rgba(160,90,0,.45)',
+    nfWin: dark?'rgba(0,230,180,.17)':'rgba(0,150,110,.1)',
+    nsWin: dark?'#00e6b4':'#007a5e',
+    link:  dark?'rgba(0,230,180,.25)':'rgba(0,130,90,.22)',
+    rank:  dark?'rgba(100,170,150,.4)':'rgba(0,90,60,.32)',
+  };
+
+  const virusesToShow = showTarget ? [...guesses, target] : guesses;
+  const tree = {label:"Viruses",depth:0,children:{},isLeaf:false,isTarget:false};
+
+  function insert(lineage, isT) {
+    let node = tree;
+    for (let i=1;i<lineage.length;i++) {
+      const seg = lineage[i];
+      if (!node.children[seg]) node.children[seg]={label:seg,depth:i,children:{},isLeaf:false,isTarget:false};
+      node = node.children[seg];
+    }
+    node.isLeaf=true; if(isT) node.isTarget=true;
+  }
+
+  virusesToShow.forEach(v => {
+    const isT = v.name===target.name;
+    const tLin=getLineage(target), gLin=getLineage(v);
+    const shared=sharedDepth(gLin,tLin);
+    insert(gLin.slice(0,Math.max(shared,1)+1), isT);
+    if (showTarget&&isT) insert(tLin, true);
+  });
+
+  const W=760, NH=48, LW=116; let nodes=[],links=[],yC=0;
+  function layout(node,x,pIdx) {
+    const myIdx=nodes.length;
+    nodes.push({label:node.label,x,y:0,isLeaf:node.isLeaf,isTarget:node.isTarget,depth:node.depth});
+    if (pIdx!==null) links.push({from:pIdx,to:myIdx});
+    const ch=Object.values(node.children);
+    if (!ch.length) { nodes[myIdx].y=yC*NH+NH; yC++; }
+    else {
+      ch.forEach(c=>layout(c,x+LW,myIdx));
+      const cys=links.filter(l=>l.from===myIdx).map(l=>nodes[l.to].y);
+      nodes[myIdx].y=cys.reduce((a,b)=>a+b,0)/cys.length;
+    }
+  }
+  layout(tree,18,null);
+
+  const H=Math.max(yC*NH+NH*2,100);
+  const svg=document.getElementById('dendro-svg');
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('width','100%');
+  svg.setAttribute('height',Math.min(H,520));
+
+  let s=`<defs><marker id="da" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M1 1.5L6 4L1 6.5" fill="none" stroke="${C.teal}" stroke-width="1.4" stroke-linecap="round" stroke-opacity=".6"/></marker></defs>`;
+
+  links.forEach(l=>{
+    const a=nodes[l.from],b=nodes[l.to];
+    const x1=a.x+88,y1=a.y,x2=b.x,y2=b.y,mx=(x1+x2)/2;
+    s+=`<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${C.link}" stroke-width="1" marker-end="url(#da)"/>`;
+  });
+
+  const rankLabels = MODE_META[currentMode].rankLabels;
+  const BW=90, BH=28;
+  nodes.forEach((n,i)=>{
+    const isRoot=(i===0);
+    let fill,stroke,sw,tc;
+    if (n.isTarget&&n.isLeaf){fill=C.nfWin;stroke=C.nsWin;sw='1.5';tc=C.teal;}
+    else if(isRoot){fill=C.nfRoot;stroke=C.nsRoot;sw='1';tc=C.purple;}
+    else if(n.isLeaf){fill=C.nfLeaf;stroke=C.nsLeaf;sw='1';tc=C.amber;}
+    else{fill=C.nfInner;stroke=C.nsInner;sw='.5';tc=C.text;}
+    const lbl=n.label.length>14?n.label.slice(0,13)+'…':n.label;
+    const rl=(n.depth>0&&n.depth<rankLabels.length)?rankLabels[n.depth]:'';
+    const bx=n.x,by=n.y-BH/2;
+    s+=`<rect x="${bx}" y="${by}" width="${BW}" height="${BH}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    s+=`<text x="${bx+BW/2}" y="${n.y}" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="10.5" font-weight="${n.isLeaf?'600':'400'}" fill="${tc}">${lbl}</text>`;
+    if (rl&&!isRoot) s+=`<text x="${bx+BW/2}" y="${by-4}" text-anchor="middle" font-family="'Space Mono',monospace" font-size="8.5" fill="${C.rank}">${rl}</text>`;
+  });
+  svg.innerHTML=s;
+}
+
+// ─── HINT / HOW ───────────────────────────────────────────────────────────
+function toggleHint() {
+  const box=document.getElementById('hint-box'), btn=document.getElementById('hint-btn');
+  if (!hintVisible) { box.innerHTML=`<b>Hint:</b> ${escHtml(target.hint)}`; box.classList.add('show'); btn.textContent='Hide hint'; hintVisible=true; }
+  else { box.classList.toggle('show'); btn.textContent=box.classList.contains('show')?'Hide hint':'Show hint'; }
+}
+function toggleHow() { document.getElementById('how-box').classList.toggle('show'); }
+
+// ─── EXPOSE ───────────────────────────────────────────────────────────────
+window.submitGuess=submitGuess; window.newGame=()=>initGame(); window.toggleHint=toggleHint;
+window.toggleHow=toggleHow; window.toggleTheme=toggleTheme; window.setMode=setMode;
+initGame();
+</script>
+</body>
+</html>
