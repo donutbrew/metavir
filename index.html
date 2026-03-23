@@ -4,12 +4,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Metavir v1.3.0 — Virus Taxonomy Guessing Game</title>
+<title>Metavir v1.4.0 — Virus Taxonomy Guessing Game</title>
 <!-- Metavir changelog
      v1.0.0 — initial build (60 viruses, horizontal dendrogram, 3 taxonomy modes)
      v1.1.0 — expanded to ~111 viruses, ICTV binomial names in search bar
      v1.2.0 — vertical top-down dendrogram, Wikipedia links on tree nodes, ? mystery node
-     v1.3.0 — removed 8-rank mode (classic + full only); badge shows ? not taxon name; ? node tracks deepest shared ancestor
+     v1.3.0 — removed 8-rank mode (classic + full only); badge shows ? not taxon name
+     v1.4.0 — Daily mode (deterministic by UTC date) + Practice mode; stats (played/won/streak) in localStorage; stats modal
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -158,34 +159,103 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
 .ghost-btn:hover{color:var(--text2);}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:var(--text3);border-radius:3px;}
-#dendro-svg a rect{transition:filter .15s,opacity .15s;}
-#dendro-svg a:hover rect{filter:brightness(1.15);}
+/* ── game mode toggle ── */
+.gmode-wrap{display:flex;align-items:center;gap:6px;}
+.gmode-pills{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.gmode-pill{padding:5px 14px;font-size:12px;font-family:var(--font-mono);color:var(--text2);cursor:pointer;border:none;background:transparent;transition:all var(--trans);white-space:nowrap;}
+.gmode-pill:not(:last-child){border-right:1px solid var(--border);}
+.gmode-pill.active{background:var(--teal-glow);color:var(--teal);font-weight:700;}
+.gmode-pill:hover:not(.active){background:var(--bg4);color:var(--text);}
+/* ── stats button ── */
+.stats-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:6px 11px;font-size:18px;cursor:pointer;line-height:1;transition:all var(--trans);}
+.stats-btn:hover{border-color:var(--teal);}
+/* ── daily date pill ── */
+.daily-date{font-size:11px;font-family:var(--font-mono);color:var(--text3);margin-top:4px;}
+/* ── completed-daily overlay (can't replay) ── */
+.daily-done-banner{background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:14px 18px;margin-bottom:14px;text-align:center;font-size:13px;color:var(--text2);display:none;}
+.daily-done-banner.show{display:block;}
+.daily-done-banner b{color:var(--teal);}
+/* ── modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:28px 24px 24px;max-width:420px;width:100%;position:relative;box-shadow:0 16px 48px var(--shadow);animation:fadeUp .28s ease;}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);line-height:1;padding:4px;}
+.modal-close:hover{color:var(--text);}
+.modal-title{font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--teal);margin-bottom:18px;text-align:center;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+.stat-box{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;text-align:center;}
+.stat-num{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--teal);}
+.stat-label{font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--font-mono);}
+.streak-bar{margin-top:4px;}
+.streak-label{font-size:12px;font-family:var(--font-mono);color:var(--text2);margin-bottom:8px;text-align:center;}
+.guess-dist{display:flex;flex-direction:column;gap:4px;}
+.dist-row{display:flex;align-items:center;gap:8px;font-size:12px;font-family:var(--font-mono);}
+.dist-n{color:var(--text3);min-width:16px;text-align:right;}
+.dist-bar-wrap{flex:1;background:var(--bg3);border-radius:4px;overflow:hidden;height:18px;}
+.dist-bar{background:var(--teal);height:100%;border-radius:4px;transition:width .4s ease;display:flex;align-items:center;padding:0 6px;min-width:24px;}
+.dist-bar span{font-size:10px;color:var(--bg);font-weight:700;}
+.dist-bar.highlight{background:var(--purple);}
+.modal-divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+.modal-footer{font-size:11px;font-family:var(--font-mono);color:var(--text3);text-align:center;}
+
 @media(max-width:500px){.page{padding:16px 10px 48px;}.input-row{flex-direction:column;}.header-top{flex-direction:column;align-items:flex-start;}}
 </style>
+
 </head>
 <body>
 <div class="page">
+  <!-- Stats modal -->
+  <div class="modal-overlay" id="stats-modal" onclick="closeStatsIfBg(event)">
+    <div class="modal">
+      <button class="modal-close" onclick="closeStats()">✕</button>
+      <div class="modal-title">📊 Your Stats</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-num" id="s-played">0</div><div class="stat-label">Played</div></div>
+        <div class="stat-box"><div class="stat-num" id="s-wins">0</div><div class="stat-label">Won</div></div>
+        <div class="stat-box"><div class="stat-num" id="s-pct">0%</div><div class="stat-label">Win %</div></div>
+        <div class="stat-box"><div class="stat-num" id="s-streak">0</div><div class="stat-label">Streak 🔥</div></div>
+      </div>
+      <div class="streak-label">Guess distribution (Daily wins)</div>
+      <div class="guess-dist" id="guess-dist"></div>
+      <hr class="modal-divider"/>
+      <div class="modal-footer" id="modal-footer">Play today's Daily to start tracking!</div>
+    </div>
+  </div>
+
   <div class="header">
     <div class="header-top">
-      <div class="mode-wrap">
-        <span class="mode-label">Taxonomy:</span>
-        <div class="mode-pills">
-          <button class="mode-pill" data-mode="classic" onclick="setMode('classic')">Classic · 5-rank</button>
-          <button class="mode-pill active" data-mode="full" onclick="setMode('full')">Full · 15-rank</button>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="gmode-wrap">
+          <div class="gmode-pills">
+            <button class="gmode-pill active" data-gmode="daily" onclick="setGameMode('daily')">📅 Daily</button>
+            <button class="gmode-pill" data-gmode="practice" onclick="setGameMode('practice')">🧪 Practice</button>
+          </div>
+        </div>
+        <div class="mode-wrap">
+          <div class="mode-pills">
+            <button class="mode-pill" data-mode="classic" onclick="setMode('classic')">Classic · 5-rank</button>
+            <button class="mode-pill active" data-mode="full" onclick="setMode('full')">Full · 15-rank</button>
+          </div>
         </div>
       </div>
-      <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">
-        <svg id="theme-icon" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        <span id="theme-label">Dark mode</span>
-      </button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="stats-btn" onclick="openStats()" title="Stats">📊</button>
+        <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">
+          <svg id="theme-icon" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="theme-label">Dark mode</span>
+        </button>
+      </div>
     </div>
     <div class="logo-title">META<span class="accent">VIR</span></div>
     <div class="tagline">Identify the mystery virus by its NCBI/ICTV taxonomy</div>
+    <div class="daily-date" id="daily-date"></div>
     <div class="meta-row">
       <span class="pill" id="guesses-pill">Guesses left: <b id="guesses-count">21</b></span>
       <span class="pill">Pool: <b id="pool-count">?</b> viruses</span>
     </div>
   </div>
+
+  <div class="daily-done-banner" id="daily-done-banner"></div>
 
   <div class="input-row">
     <div class="search-wrap">
@@ -210,7 +280,7 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
         <div class="tax-col" id="col-full"><div class="tax-col-head full">Full ICTV · 15-rank<br><span style="font-weight:400;opacity:.7">current standard</span></div></div>
       </div>
     </div>
-    <button class="new-game-btn" onclick="newGame()">New game ↺</button>
+    <button class="new-game-btn" id="new-game-btn" onclick="newGame()">New game ↺</button>
   </div>
 
   <div class="dendro-card" id="dendro-card"><svg id="dendro-svg"></svg></div>
@@ -239,11 +309,110 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
 'use strict';
 const MAX_GUESSES = 21;
 let currentMode = 'full';
+let gameMode = 'daily'; // 'daily' | 'practice'
 
 const MODE_META = {
   classic:{ label:'Classic · 5-rank',  rankLabels:["root","order","family","subfamily","genus","species"] },
   full:   { label:'Full · 15-rank', rankLabels:["root","realm","subrealm","kingdom","subkingdom","phylum","subphylum","class","subclass","order","suborder","family","subfamily","genus","subgenus","species"] },
 };
+
+// ─── DAILY HELPERS ─────────────────────────────────────────────────────────────
+// Returns UTC date string "YYYY-MM-DD"
+function todayUTC(){
+  const d=new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+}
+// Days since unix epoch (UTC) — deterministic seed
+function utcDayIndex(){
+  return Math.floor(Date.now()/86400000);
+}
+// Pick today's virus deterministically
+function getDailyVirus(){
+  const idx = utcDayIndex() % VIRUS_DB.length;
+  return VIRUS_DB[idx];
+}
+// Format date nicely
+function formatDate(s){
+  const [y,m,d]=s.split('-');
+  return new Date(Date.UTC(+y,+m-1,+d)).toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric',timeZone:'UTC'});
+}
+
+// ─── STATS (localStorage) ──────────────────────────────────────────────────────
+const STATS_KEY='metavir_stats_v1';
+function loadStats(){
+  try{return JSON.parse(localStorage.getItem(STATS_KEY))||defaultStats();}
+  catch{return defaultStats();}
+}
+function defaultStats(){
+  return{played:0,won:0,streak:0,maxStreak:0,lastPlayedDate:'',lastWonDate:'',dist:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0,13:0,14:0,15:0,16:0,17:0,18:0,19:0,20:0,21:0,X:0}};
+}
+function saveStats(s){localStorage.setItem(STATS_KEY,JSON.stringify(s));}
+function recordDailyResult(won,guessCount){
+  const s=loadStats();
+  const today=todayUTC();
+  if(s.lastPlayedDate===today)return; // already recorded
+  s.played++;
+  if(won){
+    s.won++;
+    // streak: consecutive days
+    const yesterday=new Date(Date.UTC(...today.split('-').map((v,i)=>i===1?+v-1:+v)));
+    yesterday.setUTCDate(yesterday.getUTCDate()-1);
+    const yStr=`${yesterday.getUTCFullYear()}-${String(yesterday.getUTCMonth()+1).padStart(2,'0')}-${String(yesterday.getUTCDate()).padStart(2,'0')}`;
+    s.streak=(s.lastWonDate===yStr)?s.streak+1:1;
+    s.maxStreak=Math.max(s.maxStreak,s.streak);
+    s.lastWonDate=today;
+    const k=String(guessCount);
+    s.dist[k]=(s.dist[k]||0)+1;
+  } else {
+    s.streak=0;
+    s.dist['X']=(s.dist['X']||0)+1;
+  }
+  s.lastPlayedDate=today;
+  saveStats(s);
+}
+function hasDailyBeenPlayed(){
+  return loadStats().lastPlayedDate===todayUTC();
+}
+
+// ─── STATS MODAL ───────────────────────────────────────────────────────────────
+function openStats(){
+  const s=loadStats();
+  document.getElementById('s-played').textContent=s.played;
+  document.getElementById('s-wins').textContent=s.won;
+  document.getElementById('s-pct').textContent=s.played?Math.round(s.won/s.played*100)+'%':'0%';
+  document.getElementById('s-streak').textContent=s.streak;
+  // Guess distribution
+  const distEl=document.getElementById('guess-dist');
+  distEl.innerHTML='';
+  const lastWonCount=hasDailyBeenPlayed()&&loadStats().lastWonDate===todayUTC()?null:null; // highlight today's if just won
+  const maxVal=Math.max(1,...Object.values(s.dist).map(Number));
+  for(let i=1;i<=21;i++){
+    const k=String(i);const v=s.dist[k]||0;
+    const pct=Math.round((v/maxVal)*100);
+    const row=document.createElement('div');row.className='dist-row';
+    row.innerHTML=`<span class="dist-n">${i}</span><div class="dist-bar-wrap"><div class="dist-bar" style="width:${Math.max(pct,v>0?8:2)}%"><span>${v||''}</span></div></div>`;
+    distEl.appendChild(row);
+  }
+  // X row
+  const xv=s.dist['X']||0;
+  const xpct=Math.round((xv/maxVal)*100);
+  const xrow=document.createElement('div');xrow.className='dist-row';
+  xrow.innerHTML=`<span class="dist-n" style="color:var(--red)">✗</span><div class="dist-bar-wrap"><div class="dist-bar" style="width:${Math.max(xpct,xv>0?8:2)}%;background:var(--red)"><span>${xv||''}</span></div></div>`;
+  distEl.appendChild(xrow);
+  // Footer
+  document.getElementById('modal-footer').textContent=s.played?`Best streak: ${s.maxStreak} day${s.maxStreak!==1?'s':''}`:'Play a Daily puzzle to start tracking!';
+  document.getElementById('stats-modal').classList.add('show');
+}
+function closeStats(){document.getElementById('stats-modal').classList.remove('show');}
+function closeStatsIfBg(e){if(e.target===document.getElementById('stats-modal'))closeStats();}
+
+// ─── GAME MODE ─────────────────────────────────────────────────────────────────
+function setGameMode(m){
+  gameMode=m;
+  document.querySelectorAll('.gmode-pill').forEach(p=>p.classList.toggle('active',p.dataset.gmode===m));
+  initGame();
+}
+
 
 // Wikipedia slug map for badge links
 const WIKI = {
@@ -1223,7 +1392,18 @@ function depClass(d,won){if(won)return'dep-win';return['dep-0','dep-0','dep-1','
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────
 function initGame(){
-  target=VIRUS_DB[Math.floor(Math.random()*VIRUS_DB.length)];
+  const today=todayUTC();
+  // Set daily date label
+  const dateEl=document.getElementById('daily-date');
+  const doneBanner=document.getElementById('daily-done-banner');
+  if(gameMode==='daily'){
+    dateEl.textContent=`Daily · ${formatDate(today)}`;
+    target=getDailyVirus();
+  } else {
+    dateEl.textContent='Practice mode — random virus each game';
+    target=VIRUS_DB[Math.floor(Math.random()*VIRUS_DB.length)];
+  }
+
   guesses=[];guessedNames=new Set();gameOver=false;hintVisible=false;
   document.getElementById('guesses-count').textContent=MAX_GUESSES;
   document.getElementById('pool-count').textContent=VIRUS_DB.length;
@@ -1237,11 +1417,29 @@ function initGame(){
   document.getElementById('hint-box').innerHTML='';
   document.getElementById('hint-btn').textContent='Show hint';
   document.getElementById('guess-input').value='';
-  document.getElementById('guess-input').disabled=false;
-  document.getElementById('guess-btn').disabled=false;
   document.getElementById('ac-list').classList.remove('show');
   document.getElementById('virus-img-wrap').className='virus-img-wrap';
   document.getElementById('tax-compare').className='tax-compare';
+  document.getElementById('new-game-btn').style.display=gameMode==='practice'?'':'none';
+
+  // If daily already played today, show locked state
+  if(gameMode==='daily'&&hasDailyBeenPlayed()){
+    const s=loadStats();
+    const won=s.lastWonDate===today;
+    doneBanner.className='daily-done-banner show';
+    doneBanner.innerHTML=won
+      ? `✅ You already completed today's Daily! Come back tomorrow for a new virus.<br><b>Streak: ${s.streak} 🔥</b> · <button class="soft-btn" style="margin-top:8px" onclick="openStats()">View Stats</button>`
+      : `❌ You already played today's Daily. The virus was <b>${escHtml(target.name)}</b>.<br><button class="soft-btn" style="margin-top:8px" onclick="openStats()">View Stats</button>`;
+    document.getElementById('guess-input').disabled=true;
+    document.getElementById('guess-btn').disabled=true;
+    gameOver=true;
+    // Show the answer tree
+    renderDendro(true);
+  } else {
+    doneBanner.className='daily-done-banner';
+    document.getElementById('guess-input').disabled=false;
+    document.getElementById('guess-btn').disabled=false;
+  }
 }
 
 // ─── AUTOCOMPLETE ──────────────────────────────────────────────────────────────
@@ -1352,6 +1550,8 @@ function addGuessCard(virus,depth,num){
 function endGame(won){
   gameOver=true;
   inputEl.disabled=true;document.getElementById('guess-btn').disabled=true;
+  // Record stats for daily
+  if(gameMode==='daily') recordDailyResult(won,guesses.length);
   const banner=document.getElementById('end-banner');
   if(won){
     banner.className='end-banner show';
@@ -1373,6 +1573,8 @@ function endGame(won){
   }
   buildTaxCompare();
   renderDendro(true);
+  // Show stats modal after a short delay for daily
+  if(gameMode==='daily') setTimeout(openStats, 1400);
 }
 
 // ─── TAXONOMY COMPARE ──────────────────────────────────────────────────────────
@@ -1563,13 +1765,15 @@ function toggleHint(){
 function toggleHow(){document.getElementById('how-box').classList.toggle('show');}
 
 // Expose globals
-window.submitGuess=submitGuess;window.newGame=()=>initGame();
+window.submitGuess=submitGuess;
+window.newGame=()=>{ if(gameMode==='daily'&&hasDailyBeenPlayed())return; initGame(); };
 window.toggleHint=toggleHint;window.toggleHow=toggleHow;
 window.toggleTheme=toggleTheme;window.setMode=setMode;
+window.setGameMode=setGameMode;
+window.openStats=openStats;window.closeStats=closeStats;window.closeStatsIfBg=closeStatsIfBg;
 
 initGame();
 </script>
 
 </body>
 </html>
-
