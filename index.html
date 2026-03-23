@@ -4,7 +4,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Metavir — Virus Taxonomy Guessing Game</title>
+<title>Metavir v1.3.0 — Virus Taxonomy Guessing Game</title>
+<!-- Metavir changelog
+     v1.0.0 — initial build (60 viruses, horizontal dendrogram, 3 taxonomy modes)
+     v1.1.0 — expanded to ~111 viruses, ICTV binomial names in search bar
+     v1.2.0 — vertical top-down dendrogram, Wikipedia links on tree nodes, ? mystery node
+     v1.3.0 — removed 8-rank mode (classic + full only); badge shows ? not taxon name; ? node tracks deepest shared ancestor
+-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
@@ -99,8 +105,8 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
 .tax-compare{display:none;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;margin:14px 0;text-align:left;}
 .tax-compare.show{display:block;}
 .tax-compare-title{font-family:var(--font-mono);font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;text-align:center;}
-.tax-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-@media(max-width:580px){.tax-cols{grid-template-columns:1fr;}}
+.tax-cols{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+@media(max-width:480px){.tax-cols{grid-template-columns:1fr;}}
 .tax-col{display:flex;flex-direction:column;}
 .tax-col-head{font-family:var(--font-mono);font-size:11px;font-weight:700;padding:6px 10px;border-radius:7px 7px 0 0;text-align:center;letter-spacing:.5px;}
 .tax-col-head.classic{background:rgba(139,92,246,.18);color:var(--purple);}
@@ -164,9 +170,8 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
       <div class="mode-wrap">
         <span class="mode-label">Taxonomy:</span>
         <div class="mode-pills">
-          <button class="mode-pill" data-mode="classic" onclick="setMode('classic')">5-rank</button>
-          <button class="mode-pill active" data-mode="simple" onclick="setMode('simple')">8-rank</button>
-          <button class="mode-pill" data-mode="full" onclick="setMode('full')">15-rank</button>
+          <button class="mode-pill" data-mode="classic" onclick="setMode('classic')">Classic · 5-rank</button>
+          <button class="mode-pill active" data-mode="full" onclick="setMode('full')">Full · 15-rank</button>
         </div>
       </div>
       <button class="icon-btn" id="theme-btn" onclick="toggleTheme()">
@@ -178,7 +183,6 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
     <div class="tagline">Identify the mystery virus by its NCBI/ICTV taxonomy</div>
     <div class="meta-row">
       <span class="pill" id="guesses-pill">Guesses left: <b id="guesses-count">21</b></span>
-      <span class="pill">Mode: <b id="mode-name">8-rank</b></span>
       <span class="pill">Pool: <b id="pool-count">?</b> viruses</span>
     </div>
   </div>
@@ -200,10 +204,9 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
       <div class="virus-img-caption" id="virus-img-caption"></div>
     </div>
     <div class="tax-compare" id="tax-compare">
-      <div class="tax-compare-title">Taxonomy across all three classification systems</div>
+      <div class="tax-compare-title">Taxonomy across both classification systems</div>
       <div class="tax-cols">
         <div class="tax-col" id="col-classic"><div class="tax-col-head classic">Classic · 5-rank<br><span style="font-weight:400;opacity:.7">pre-2017 ICTV</span></div></div>
-        <div class="tax-col" id="col-simple"><div class="tax-col-head simple">Simplified · 8-rank<br><span style="font-weight:400;opacity:.7">this game's default</span></div></div>
         <div class="tax-col" id="col-full"><div class="tax-col-head full">Full ICTV · 15-rank<br><span style="font-weight:400;opacity:.7">current standard</span></div></div>
       </div>
     </div>
@@ -220,26 +223,26 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
   <div class="collapsible" id="how-box">
     <h4>How to play</h4>
     <ul>
-      <li>You have <b>21 guesses</b> to identify the mystery virus (~170 in the pool).</li>
+      <li>You have <b>21 guesses</b> to identify the mystery virus (~111 in the pool).</li>
       <li>Search by <b>common name</b> (e.g. "Ebola virus") <b>or</b> ICTV binomial (e.g. "Orthoebolavirus zairense") — both work in the search bar.</li>
-      <li>Each guess shows a badge with the deepest <b>shared taxon</b> — click it to open Wikipedia.</li>
-      <li>The dendrogram above your guesses grows to reveal the taxonomy tree.</li>
-      <li>Switch taxonomy mode (5 / 8 / 15-rank) at any time; switching resets the current game.</li>
-      <li>On a correct guess, a micrograph (where available) and a <b>side-by-side comparison</b> of all three classification systems is shown.</li>
+      <li>Each guess shows a <b>color-coded badge</b> — color encodes how close you are (red = no overlap → purple = correct). The taxon name is <em>not</em> revealed; use the tree.</li>
+      <li>The <b>? node</b> in the tree tracks the mystery virus's position — it moves closer to the answer as you home in on the right branch.</li>
+      <li>Click any named node in the tree to open its Wikipedia page.</li>
+      <li>Switch between <b>Classic (5-rank)</b> and <b>Full ICTV (15-rank)</b> at any time; switching resets the game.</li>
+      <li>On a correct guess, a micrograph and a <b>side-by-side comparison</b> of both classification systems is shown.</li>
     </ul>
-    <p style="margin-top:8px;font-size:12px;color:var(--text3)">Taxonomy follows NCBI/ICTV 2023–2024. Binomial species names per ICTV 2021+ mandate (latinized where known).</p>
+    <p style="margin-top:8px;font-size:12px;color:var(--text3)">Taxonomy follows NCBI/ICTV 2023–2024. Binomial species names per ICTV 2021+ mandate.</p>
   </div>
 </div>
 
 <script>
 'use strict';
 const MAX_GUESSES = 21;
-let currentMode = 'simple';
+let currentMode = 'full';
 
 const MODE_META = {
-  classic:{ label:'5-rank',  rankLabels:["root","order","family","subfamily","genus","species"] },
-  simple: { label:'8-rank',  rankLabels:["root","realm","kingdom","phylum","class","order","family","genus","species"] },
-  full:   { label:'15-rank', rankLabels:["root","realm","subrealm","kingdom","subkingdom","phylum","subphylum","class","subclass","order","suborder","family","subfamily","genus","subgenus","species"] },
+  classic:{ label:'Classic · 5-rank',  rankLabels:["root","order","family","subfamily","genus","species"] },
+  full:   { label:'Full · 15-rank', rankLabels:["root","realm","subrealm","kingdom","subkingdom","phylum","subphylum","class","subclass","order","suborder","family","subfamily","genus","subgenus","species"] },
 };
 
 // Wikipedia slug map for badge links
@@ -1206,7 +1209,6 @@ function toggleTheme(){
 function setMode(m){
   currentMode=m;
   document.querySelectorAll('.mode-pill').forEach(p=>p.classList.toggle('active',p.dataset.mode===m));
-  document.getElementById('mode-name').textContent=MODE_META[m].label;
   initGame();
 }
 
@@ -1322,20 +1324,27 @@ function submitGuess(){
   document.getElementById('guesses-count').textContent=remaining;
   const pill=document.getElementById('guesses-pill');
   if(remaining<=3)pill.className='pill danger';else if(remaining<=7)pill.className='pill warn';
-  addGuessCard(virus,depth,guesses.length,tLin);
+  addGuessCard(virus,depth,guesses.length);
   renderDendro(false);
-  if(virus.name===target.name)endGame(true);
-  else if(guesses.length>=MAX_GUESSES)endGame(false);
-  else setStatus(`Deepest shared taxon: ${wikiLink(tLin[depth-1]||'—')}`, '');
+  if(virus.name===target.name){endGame(true);return;}
+  if(guesses.length>=MAX_GUESSES){endGame(false);return;}
+  const tLen=tLin.length;
+  const pct=Math.round((depth/Math.max(tLen-1,1))*100);
+  const warmth = pct===0 ? 'No overlap — completely different lineage.' :
+                 pct<25  ? `${pct}% — very distant.` :
+                 pct<50  ? `${pct}% — getting closer.` :
+                 pct<75  ? `${pct}% — same major group!` :
+                           `${pct}% — very close! Watch the tree.`;
+  setStatus(warmth,'');
 }
 
-function addGuessCard(virus,depth,num,tLin){
+function addGuessCard(virus,depth,num){
   const log=document.getElementById('log-wrap');
   const card=document.createElement('div');card.className='guess-card';
   const won=virus.name===target.name;
   const bc=depClass(depth,won);
-  const sharedTaxon=won?'✓ correct!':(depth>0?tLin[depth-1]:'none');
-  const inner=won?'✓ correct!':wikiLink(sharedTaxon);
+  // Never reveal the taxon name — just show ? (color encodes depth) or ✓ on win
+  const inner=won?'✓ correct!':'?';
   card.innerHTML=`<span class="g-num">${num}.</span><div class="g-info"><div class="g-name">${escHtml(virus.name)}</div>${virus.binomial?`<div class="g-binom">${escHtml(virus.binomial)}</div>`:''}</div><span class="g-badge ${bc}">${inner}</span>`;
   log.insertBefore(card,log.firstChild);
 }
@@ -1369,7 +1378,6 @@ function endGame(won){
 // ─── TAXONOMY COMPARE ──────────────────────────────────────────────────────────
 function buildTaxCompare(){
   const classicSchema=[{rank:'order',idx:1},{rank:'family',idx:2},{rank:'subfamily',idx:3},{rank:'genus',idx:4},{rank:'species',idx:5}];
-  const simpleSchema=[{rank:'realm',idx:1},{rank:'kingdom',idx:2},{rank:'phylum',idx:3},{rank:'class',idx:4},{rank:'order',idx:5},{rank:'family',idx:6},{rank:'genus',idx:7},{rank:'species',idx:8}];
   const FULL_RANKS=["realm","subrealm","kingdom","subkingdom","phylum","subphylum","class","subclass","order","suborder","family","subfamily","genus","subgenus","species"];
   const lins=getAllLineages(target);
   function renderCol(colId,rows){
@@ -1384,7 +1392,6 @@ function buildTaxCompare(){
     });
   }
   renderCol('col-classic',classicSchema.map(({rank,idx})=>({rank,val:lins.classic[idx]||null})));
-  renderCol('col-simple',simpleSchema.map(({rank,idx})=>({rank,val:lins.simple[idx]||null})));
   renderCol('col-full',FULL_RANKS.map((rank,i)=>({rank,val:target.full[i+1]})));
   document.getElementById('tax-compare').className='tax-compare show';
 }
@@ -1565,3 +1572,4 @@ initGame();
 
 </body>
 </html>
+
