@@ -152,6 +152,8 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
 .ghost-btn:hover{color:var(--text2);}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:var(--text3);border-radius:3px;}
+#dendro-svg a rect{transition:filter .15s,opacity .15s;}
+#dendro-svg a:hover rect{filter:brightness(1.15);}
 @media(max-width:500px){.page{padding:16px 10px 48px;}.input-row{flex-direction:column;}.header-top{flex-direction:column;align-items:flex-start;}}
 </style>
 </head>
@@ -1387,7 +1389,7 @@ function buildTaxCompare(){
   document.getElementById('tax-compare').className='tax-compare show';
 }
 
-// ─── DENDROGRAM ────────────────────────────────────────────────────────────────
+// ─── DENDROGRAM (vertical, top-down) ──────────────────────────────────────────
 function renderDendro(showTarget){
   const card=document.getElementById('dendro-card');
   if(!guesses.length&&!showTarget){card.classList.remove('show');return;}
@@ -1400,54 +1402,148 @@ function renderDendro(showTarget){
     nfInner:dark?'rgba(0,180,140,.07)':'rgba(0,130,90,.05)',nsInner:dark?'rgba(0,230,180,.2)':'rgba(0,130,90,.22)',
     nfLeaf:dark?'rgba(245,158,11,.14)':'rgba(180,100,0,.09)',nsLeaf:dark?'rgba(245,158,11,.6)':'rgba(160,90,0,.45)',
     nfWin:dark?'rgba(0,230,180,.17)':'rgba(0,150,110,.1)',nsWin:dark?'#00e6b4':'#007a5e',
+    nfQ:dark?'rgba(139,92,246,.18)':'rgba(109,40,217,.1)',nsQ:dark?'#8b5cf6':'#6d28d9',tcQ:dark?'#c4b5fd':'#6d28d9',
     link:dark?'rgba(0,230,180,.25)':'rgba(0,130,90,.22)',rank:dark?'rgba(100,170,150,.4)':'rgba(0,90,60,.32)',
   };
-  const virusesToShow=showTarget?[...guesses,target]:guesses;
-  const tree={label:"Viruses",depth:0,children:{},isLeaf:false,isTarget:false};
-  function insert(lineage,isT){
-    let node=tree;
+
+  // ── Build tree ──────────────────────────────────────────────────────────────
+  const virusesToShow = showTarget ? [...guesses, target] : guesses;
+  const tree = {label:'Viruses',depth:0,children:{},isLeaf:false,isTarget:false,isQ:false};
+
+  function insert(lineage, isT, isQ){
+    let node = tree;
     for(let i=1;i<lineage.length;i++){
-      if(!node.children[lineage[i]])node.children[lineage[i]]={label:lineage[i],depth:i,children:{},isLeaf:false,isTarget:false};
-      node=node.children[lineage[i]];
+      const seg = lineage[i];
+      if(!node.children[seg])
+        node.children[seg]={label:seg,depth:i,children:{},isLeaf:false,isTarget:false,isQ:false};
+      node = node.children[seg];
     }
-    node.isLeaf=true;if(isT)node.isTarget=true;
+    node.isLeaf=true;
+    if(isT) node.isTarget=true;
+    if(isQ) node.isQ=true;
   }
+
+  // Insert guessed viruses (trimmed to shared path)
   virusesToShow.forEach(v=>{
-    const isT=v.name===target.name;
-    const tLin=getLineage(target),gLin=getLineage(v);
-    const shared=sharedDepth(gLin,tLin);
-    insert(gLin.slice(0,Math.max(shared,1)+1),isT);
-    if(showTarget&&isT)insert(tLin,true);
+    const isT = v.name===target.name;
+    const tLin = getLineage(target), gLin = getLineage(v);
+    const shared = sharedDepth(gLin, tLin);
+    insert(gLin.slice(0, Math.max(shared,1)+1), isT, false);
+    if(showTarget && isT) insert(tLin, true, false);
   });
-  const W=760,NH=48,LW=116;let nodes=[],links=[],yC=0;
-  function layout(node,x,pIdx){
-    const myIdx=nodes.length;
-    nodes.push({label:node.label,x,y:0,isLeaf:node.isLeaf,isTarget:node.isTarget,depth:node.depth});
-    if(pIdx!==null)links.push({from:pIdx,to:myIdx});
-    const ch=Object.values(node.children);
-    if(!ch.length){nodes[myIdx].y=yC*NH+NH;yC++;}
-    else{ch.forEach(c=>layout(c,x+LW,myIdx));const cys=links.filter(l=>l.from===myIdx).map(l=>nodes[l.to].y);nodes[myIdx].y=cys.reduce((a,b)=>a+b,0)/cys.length;}
+
+  // Always insert the '?' mystery node along the target's lineage
+  // It branches from the deepest shared ancestor across all guesses
+  if(!showTarget){
+    const tLin = getLineage(target);
+    let deepestShared = 1; // at least show it under root
+    virusesToShow.forEach(v=>{
+      const d = sharedDepth(getLineage(v), tLin);
+      if(d > deepestShared) deepestShared = d;
+    });
+    // Insert ? one level below the deepest shared node
+    const qDepth = Math.min(deepestShared + 1, tLin.length - 1);
+    const qPath = [...tLin.slice(0, qDepth), '?'];
+    insert(qPath, false, true);
   }
-  layout(tree,18,null);
-  const H=Math.max(yC*NH+NH*2,100);
+
+  // ── Layout: vertical top-down (depth → Y, leaf position → X) ───────────────
+  const BW=92, BH=30, NW=BW, NH=BH;
+  const HGAP=20;  // horizontal gap between leaf columns
+  const VGAP=54;  // vertical gap between depth levels
+
+  // First pass: count leaves to assign x slots
+  let leafCount=0;
+  function countLeaves(node){ 
+    const ch=Object.values(node.children);
+    if(!ch.length){node.leafIdx=leafCount++;return;}
+    ch.forEach(c=>countLeaves(c));
+  }
+  countLeaves(tree);
+
+  // Second pass: assign x (center of leaf span) and y (depth * VGAP)
+  function layoutV(node){
+    node.y = node.depth * VGAP + 20;
+    const ch = Object.values(node.children);
+    if(!ch.length){
+      node.x = node.leafIdx * (NW + HGAP) + NW/2;
+    } else {
+      ch.forEach(c=>layoutV(c));
+      const xs = ch.map(c=>c.x);
+      node.x = (Math.min(...xs)+Math.max(...xs))/2;
+    }
+  }
+  layoutV(tree);
+
+  const totalW = leafCount * (NW + HGAP) - HGAP + 20;
+  const maxDepth = Math.max(...Object.values(getLineage(target)).length ? [getLineage(target).length] : [4]);
+
+  // Collect all nodes/links for rendering
+  const allNodes=[], allLinks=[];
+  function collect(node, parentIdx){
+    const idx=allNodes.length;
+    allNodes.push(node);
+    if(parentIdx!==null) allLinks.push({from:parentIdx,to:idx});
+    Object.values(node.children).forEach(c=>collect(c,idx));
+  }
+  collect(tree,null);
+
+  const svgH = (allNodes.reduce((m,n)=>Math.max(m,n.y),0)) + BH + 30;
+  const svgW = Math.max(totalW, 300);
+
   const svg=document.getElementById('dendro-svg');
-  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.setAttribute('width','100%');svg.setAttribute('height',Math.min(H,520));
-  let s=`<defs><marker id="da" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M1 1.5L6 4L1 6.5" fill="none" stroke="${C.teal}" stroke-width="1.4" stroke-linecap="round" stroke-opacity=".6"/></marker></defs>`;
-  links.forEach(l=>{const a=nodes[l.from],b=nodes[l.to];const x1=a.x+88,y1=a.y,x2=b.x,y2=b.y,mx=(x1+x2)/2;s+=`<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${C.link}" stroke-width="1" marker-end="url(#da)"/>`;});
-  const RL=MODE_META[currentMode].rankLabels;const BW=90,BH=28;
-  nodes.forEach((n,i)=>{
-    const isRoot=(i===0);let fill,stroke,sw,tc;
-    if(n.isTarget&&n.isLeaf){fill=C.nfWin;stroke=C.nsWin;sw='1.5';tc=C.teal;}
+  svg.setAttribute('viewBox',`0 0 ${svgW} ${svgH}`);
+  svg.setAttribute('width','100%');
+  svg.setAttribute('height', Math.min(svgH, 600));
+
+  const RL=MODE_META[currentMode].rankLabels;
+  let s='';
+
+  // Draw links first (elbow connectors: vertical then horizontal)
+  allLinks.forEach(l=>{
+    const a=allNodes[l.from], b=allNodes[l.to];
+    // parent bottom-center → child top-center, elbow style
+    const x1=a.x, y1=a.y+BH/2+1;
+    const x2=b.x, y2=b.y-BH/2-1;
+    const my=(y1+y2)/2;
+    s+=`<path d="M${x1},${y1} L${x1},${my} L${x2},${my} L${x2},${y2}" fill="none" stroke="${C.link}" stroke-width="1.2" stroke-linejoin="round"/>`;
+  });
+
+  // Draw nodes
+  allNodes.forEach((n,i)=>{
+    const isRoot=(i===0);
+    let fill,stroke,sw,tc;
+    if(n.isQ){fill=C.nfQ;stroke=C.nsQ;sw='1.5';tc=C.tcQ;}
+    else if(n.isTarget&&n.isLeaf){fill=C.nfWin;stroke=C.nsWin;sw='1.5';tc=C.teal;}
     else if(isRoot){fill=C.nfRoot;stroke=C.nsRoot;sw='1';tc=C.purple;}
     else if(n.isLeaf){fill=C.nfLeaf;stroke=C.nsLeaf;sw='1';tc=C.amber;}
     else{fill=C.nfInner;stroke=C.nsInner;sw='.5';tc=C.text;}
-    const lbl=n.label.length>14?n.label.slice(0,13)+'…':n.label;
-    const rl=(n.depth>0&&n.depth<RL.length)?RL[n.depth]:'';
-    const bx=n.x,by=n.y-BH/2;
+
+    const bx=n.x-BW/2, by=n.y-BH/2;
+    const lbl = n.isQ ? '?' : (n.label.length>13 ? n.label.slice(0,12)+'…' : n.label);
+    const rl  = (!isRoot&&n.depth>0&&n.depth<RL.length) ? RL[n.depth] : '';
+
+    // Rank label above node
+    if(rl) s+=`<text x="${n.x}" y="${by-3}" text-anchor="middle" font-family="'Space Mono',monospace" font-size="8" fill="${C.rank}">${rl}</text>`;
+
+    // Node: wrap in <a> for Wikipedia link (skip ? and root for link)
+    const wikiSlug = (!n.isQ && WIKI[n.label]) ? WIKI[n.label] : null;
+    const openA = wikiSlug ? `<a href="https://en.wikipedia.org/wiki/${wikiSlug}" target="_blank" rel="noopener noreferrer" style="cursor:pointer">` : '';
+    const closeA = wikiSlug ? `</a>` : '';
+
+    s += openA;
+    // Subtle glow/hover effect via a slightly larger transparent rect
+    if(wikiSlug) s+=`<rect x="${bx-2}" y="${by-2}" width="${BW+4}" height="${BH+4}" rx="7" fill="transparent" stroke="none" class="node-hover-ring"/>`;
     s+=`<rect x="${bx}" y="${by}" width="${BW}" height="${BH}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    s+=`<text x="${bx+BW/2}" y="${n.y}" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="10.5" font-weight="${n.isLeaf?'600':'400'}" fill="${tc}">${lbl}</text>`;
-    if(rl&&!isRoot)s+=`<text x="${bx+BW/2}" y="${by-4}" text-anchor="middle" font-family="'Space Mono',monospace" font-size="8.5" fill="${C.rank}">${rl}</text>`;
+    if(n.isQ){
+      // Big bold ? in the center
+      s+=`<text x="${n.x}" y="${n.y+1}" text-anchor="middle" dominant-baseline="central" font-family="'Space Mono',monospace" font-size="15" font-weight="700" fill="${tc}">?</text>`;
+    } else {
+      s+=`<text x="${n.x}" y="${n.y}" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="10" font-weight="${n.isLeaf?'600':'400'}" fill="${tc}">${escHtml(lbl)}</text>`;
+    }
+    s += closeA;
   });
+
   svg.innerHTML=s;
 }
 
