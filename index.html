@@ -4,13 +4,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Metavir v1.4.0 — Virus Taxonomy Guessing Game</title>
+<title>Metavir v1.4.1 — Virus Taxonomy Guessing Game</title>
 <!-- Metavir changelog
      v1.0.0 — initial build (60 viruses, horizontal dendrogram, 3 taxonomy modes)
      v1.1.0 — expanded to ~111 viruses, ICTV binomial names in search bar
      v1.2.0 — vertical top-down dendrogram, Wikipedia links on tree nodes, ? mystery node
      v1.3.0 — removed 8-rank mode (classic + full only); badge shows ? not taxon name
-     v1.4.0 — Daily mode (deterministic by UTC date) + Practice mode; stats (played/won/streak) in localStorage; stats modal
+     v1.4.0 — Daily mode + Practice mode; stats in localStorage; stats modal; all hints rewritten
+     v1.4.1 — shorter stats modal, mobile-friendly close button, improved already-played banner
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -186,25 +187,23 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
 /* ── modal ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;}
 .modal-overlay.show{display:flex;}
-.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:28px 24px 24px;max-width:420px;width:100%;position:relative;box-shadow:0 16px 48px var(--shadow);animation:fadeUp .28s ease;}
-.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);line-height:1;padding:4px;}
-.modal-close:hover{color:var(--text);}
-.modal-title{font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--teal);margin-bottom:18px;text-align:center;}
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
-.stat-box{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;text-align:center;}
-.stat-num{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--teal);}
-.stat-label{font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--font-mono);}
-.streak-bar{margin-top:4px;}
-.streak-label{font-size:12px;font-family:var(--font-mono);color:var(--text2);margin-bottom:8px;text-align:center;}
-.guess-dist{display:flex;flex-direction:column;gap:4px;}
-.dist-row{display:flex;align-items:center;gap:8px;font-size:12px;font-family:var(--font-mono);}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:20px 20px 16px;max-width:380px;width:100%;box-shadow:0 16px 48px var(--shadow);animation:fadeUp .28s ease;display:flex;flex-direction:column;gap:12px;}
+.modal-title{font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--teal);text-align:center;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.stat-box{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 4px;text-align:center;}
+.stat-num{font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--teal);}
+.stat-label{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--font-mono);}
+.streak-label{font-size:11px;font-family:var(--font-mono);color:var(--text2);text-align:center;}
+.guess-dist{display:flex;flex-direction:column;gap:3px;}
+.dist-row{display:flex;align-items:center;gap:7px;font-size:11px;font-family:var(--font-mono);}
 .dist-n{color:var(--text3);min-width:16px;text-align:right;}
-.dist-bar-wrap{flex:1;background:var(--bg3);border-radius:4px;overflow:hidden;height:18px;}
-.dist-bar{background:var(--teal);height:100%;border-radius:4px;transition:width .4s ease;display:flex;align-items:center;padding:0 6px;min-width:24px;}
-.dist-bar span{font-size:10px;color:var(--bg);font-weight:700;}
+.dist-bar-wrap{flex:1;background:var(--bg3);border-radius:3px;overflow:hidden;height:16px;}
+.dist-bar{background:var(--teal);height:100%;border-radius:3px;transition:width .4s ease;display:flex;align-items:center;padding:0 5px;min-width:20px;}
+.dist-bar span{font-size:9px;color:var(--bg);font-weight:700;}
 .dist-bar.highlight{background:var(--purple);}
-.modal-divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
 .modal-footer{font-size:11px;font-family:var(--font-mono);color:var(--text3);text-align:center;}
+.modal-close-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:9px;font-size:13px;font-family:var(--font-sans);font-weight:500;color:var(--text2);cursor:pointer;width:100%;transition:all var(--trans);}
+.modal-close-btn:hover{border-color:var(--teal);color:var(--teal);}
 
 @media(max-width:500px){.page{padding:16px 10px 48px;}.input-row{flex-direction:column;}.header-top{flex-direction:column;align-items:flex-start;}}
 </style>
@@ -215,7 +214,6 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
   <!-- Stats modal -->
   <div class="modal-overlay" id="stats-modal" onclick="closeStatsIfBg(event)">
     <div class="modal">
-      <button class="modal-close" onclick="closeStats()">✕</button>
       <div class="modal-title">📊 Your Stats</div>
       <div class="stats-grid">
         <div class="stat-box"><div class="stat-num" id="s-played">0</div><div class="stat-label">Played</div></div>
@@ -225,8 +223,8 @@ input[type=text]:disabled{opacity:.45;cursor:not-allowed;}
       </div>
       <div class="streak-label">Guess distribution (Daily wins)</div>
       <div class="guess-dist" id="guess-dist"></div>
-      <hr class="modal-divider"/>
-      <div class="modal-footer" id="modal-footer">Play today's Daily to start tracking!</div>
+      <div class="modal-footer" id="modal-footer"></div>
+      <button class="modal-close-btn" onclick="closeStats()">Close</button>
     </div>
   </div>
 
@@ -387,28 +385,34 @@ function openStats(){
   const s=loadStats();
   document.getElementById('s-played').textContent=s.played;
   document.getElementById('s-wins').textContent=s.won;
-  document.getElementById('s-pct').textContent=s.played?Math.round(s.won/s.played*100)+'%':'0%';
+  document.getElementById('s-pct').textContent=s.played?Math.round(s.won/s.played*100)+'%':'—';
   document.getElementById('s-streak').textContent=s.streak;
-  // Guess distribution
+  // Guess distribution — only render rows that have at least one entry, plus X
   const distEl=document.getElementById('guess-dist');
   distEl.innerHTML='';
-  const lastWonCount=hasDailyBeenPlayed()&&loadStats().lastWonDate===todayUTC()?null:null; // highlight today's if just won
   const maxVal=Math.max(1,...Object.values(s.dist).map(Number));
+  let anyRows=false;
   for(let i=1;i<=21;i++){
     const k=String(i);const v=s.dist[k]||0;
+    if(!v)continue; // skip empty rows to keep modal short
+    anyRows=true;
     const pct=Math.round((v/maxVal)*100);
     const row=document.createElement('div');row.className='dist-row';
-    row.innerHTML=`<span class="dist-n">${i}</span><div class="dist-bar-wrap"><div class="dist-bar" style="width:${Math.max(pct,v>0?8:2)}%"><span>${v||''}</span></div></div>`;
+    row.innerHTML=`<span class="dist-n">${i}</span><div class="dist-bar-wrap"><div class="dist-bar" style="width:${Math.max(pct,8)}%"><span>${v}</span></div></div>`;
     distEl.appendChild(row);
   }
-  // X row
   const xv=s.dist['X']||0;
-  const xpct=Math.round((xv/maxVal)*100);
-  const xrow=document.createElement('div');xrow.className='dist-row';
-  xrow.innerHTML=`<span class="dist-n" style="color:var(--red)">✗</span><div class="dist-bar-wrap"><div class="dist-bar" style="width:${Math.max(xpct,xv>0?8:2)}%;background:var(--red)"><span>${xv||''}</span></div></div>`;
-  distEl.appendChild(xrow);
-  // Footer
-  document.getElementById('modal-footer').textContent=s.played?`Best streak: ${s.maxStreak} day${s.maxStreak!==1?'s':''}`:'Play a Daily puzzle to start tracking!';
+  if(xv){
+    const xpct=Math.round((xv/maxVal)*100);
+    const xrow=document.createElement('div');xrow.className='dist-row';
+    xrow.innerHTML=`<span class="dist-n" style="color:var(--red)">✗</span><div class="dist-bar-wrap"><div class="dist-bar" style="width:${Math.max(xpct,8)}%;background:var(--red)"><span>${xv}</span></div></div>`;
+    distEl.appendChild(xrow);
+  }
+  if(!anyRows&&!xv){
+    distEl.innerHTML=`<div style="text-align:center;color:var(--text3);font-size:12px;padding:6px 0">No daily games completed yet</div>`;
+  }
+  // Footer: best streak
+  document.getElementById('modal-footer').textContent=s.maxStreak?`Best streak: ${s.maxStreak} day${s.maxStreak!==1?'s':''}` :'Play a Daily to start tracking!';
   document.getElementById('stats-modal').classList.add('show');
 }
 function closeStats(){document.getElementById('stats-modal').classList.remove('show');}
@@ -508,35 +512,35 @@ const VIRUS_DB = [
  classic:["Viruses","Nidovirales","Coronaviridae",null,"Betacoronavirus","SARS-CoV-2"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Nidovirales","Coronaviridae","Betacoronavirus","SARS-CoV-2"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Nidovirales","Cornidovirineae","Coronaviridae","Orthocoronavirinae","Betacoronavirus",null,"SARS-CoV-2"],
- hint:"Caused the COVID-19 pandemic; spike protein binds ACE2 receptor; Omicron emerged late 2021.",
+ hint:"Binds ACE2 via its spike protein; positive-sense ssRNA; emerged from a seafood/live-animal market in late 2019; Betacoronavirus.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/SARS-CoV-2_without_background.png/320px-SARS-CoV-2_without_background.png",caption:"SARS-CoV-2 (colorized TEM, CDC/NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:SARS-CoV-2_without_background.png",credit:"CDC/NIAID — public domain"}},
 
 {name:"MERS-CoV",binomial:"Betacoronavirus cameli",
  classic:["Viruses","Nidovirales","Coronaviridae",null,"Betacoronavirus","MERS-CoV"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Nidovirales","Coronaviridae","Betacoronavirus","MERS-CoV"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Nidovirales","Cornidovirineae","Coronaviridae","Orthocoronavirinae","Betacoronavirus",null,"MERS-CoV"],
- hint:"Dromedary camels are primary reservoir; DPP4 receptor; ~35% case-fatality rate.",
+ hint:"Uses DPP4 (CD26) as its entry receptor; dromedary camel is primary zoonotic host; cluster outbreaks in healthcare settings; Betacoronavirus.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/MERS-CoV_particles_in_camel_isolate.jpg/320px-MERS-CoV_particles_in_camel_isolate.jpg",caption:"MERS-CoV (TEM, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:MERS-CoV_particles_in_camel_isolate.jpg",credit:"NIAID — CC BY 2.0"}},
 
 {name:"SARS-CoV-1",binomial:"Betacoronavirus pandemicum",
  classic:["Viruses","Nidovirales","Coronaviridae",null,"Betacoronavirus","SARS-CoV-1"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Nidovirales","Coronaviridae","Betacoronavirus","SARS-CoV-1"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Nidovirales","Cornidovirineae","Coronaviridae","Orthocoronavirinae","Betacoronavirus",null,"SARS-CoV-1"],
- hint:"Caused the 2003 SARS outbreak; same species as SARS-CoV-2 (Betacoronavirus pandemicum).",
+ hint:"Shares a species with a more recent pandemic coronavirus; civet cats served as intermediate host; contained by 2003 with no endemic circulation since.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/SARS-CoV-2_without_background.png/320px-SARS-CoV-2_without_background.png",caption:"Coronavirus (CDC/NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:SARS-CoV-2_without_background.png",credit:"CDC/NIAID — public domain"}},
 
 {name:"Human coronavirus OC43",binomial:"Betacoronavirus gravedinis",
  classic:["Viruses","Nidovirales","Coronaviridae",null,"Betacoronavirus","Human coronavirus OC43"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Nidovirales","Coronaviridae","Betacoronavirus","Human coronavirus OC43"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Nidovirales","Cornidovirineae","Coronaviridae","Orthocoronavirinae","Betacoronavirus",null,"Human coronavirus OC43"],
- hint:"One of four endemic 'common cold' coronaviruses; zoonotic origin from bovines ~120 years ago.",
+ hint:"Betacoronavirus that crossed into humans from cattle roughly a century ago; one of the four endemic human coronaviruses; uses sialic acid as receptor.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/SARS-CoV-2_without_background.png/320px-SARS-CoV-2_without_background.png",caption:"Betacoronavirus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:SARS-CoV-2_without_background.png",credit:"CDC/NIAID — public domain"}},
 
 {name:"Human coronavirus 229E",binomial:"Alphacoronavirus duobus",
  classic:["Viruses","Nidovirales","Coronaviridae",null,"Alphacoronavirus","Human coronavirus 229E"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Nidovirales","Coronaviridae","Alphacoronavirus","Human coronavirus 229E"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Nidovirales","Cornidovirineae","Coronaviridae","Orthocoronavirinae","Alphacoronavirus",null,"Human coronavirus 229E"],
- hint:"Alpha-coronavirus; bat-origin; uses aminopeptidase N (CD13) as receptor; discovered 1966.",
+ hint:"Alphacoronavirus; uses aminopeptidase N (CD13) as its cellular receptor; bat origin; discovered in the 1960s as one of the first human coronaviruses identified.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/SARS-CoV-2_without_background.png/320px-SARS-CoV-2_without_background.png",caption:"Coronavirus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:SARS-CoV-2_without_background.png",credit:"CDC/NIAID — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -546,21 +550,21 @@ const VIRUS_DB = [
  classic:["Viruses","Articulavirales","Orthomyxoviridae",null,"Alphainfluenzavirus","Influenza A virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Insthoviricetes","Articulavirales","Orthomyxoviridae","Alphainfluenzavirus","Influenza A virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Polyploviricotina","Insthoviricetes",null,"Articulavirales",null,"Orthomyxoviridae",null,"Alphainfluenzavirus",null,"Influenza A virus"],
- hint:"8-segment negative-sense RNA; H and N subtypes; only influenza type with pandemic potential.",
+ hint:"Eight-segment negative-sense genome; subtypes defined by two surface glycoproteins; reservoir spans wild aquatic birds, swine, and humans; reassortment drives antigenic shift.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/EM_of_influenza_virus.jpg/320px-EM_of_influenza_virus.jpg",caption:"Influenza A virions (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:EM_of_influenza_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Influenza B virus",binomial:"Betainfluenzavirus influenzae",
  classic:["Viruses","Articulavirales","Orthomyxoviridae",null,"Betainfluenzavirus","Influenza B virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Insthoviricetes","Articulavirales","Orthomyxoviridae","Betainfluenzavirus","Influenza B virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Polyploviricotina","Insthoviricetes",null,"Articulavirales",null,"Orthomyxoviridae",null,"Betainfluenzavirus",null,"Influenza B virus"],
- hint:"Seasonal flu; only circulates in humans and seals; Victoria and Yamagata lineages; no pandemic potential.",
+ hint:"Seven-segment genome; restricted to humans and pinnipeds; two co-circulating evolutionary lineages; no known avian reservoir; cannot cause pandemics.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/EM_of_influenza_virus.jpg/320px-EM_of_influenza_virus.jpg",caption:"Influenza virions (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:EM_of_influenza_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Influenza C virus",binomial:"Gammainfluenzavirus influenzae",
  classic:["Viruses","Articulavirales","Orthomyxoviridae",null,"Gammainfluenzavirus","Influenza C virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Insthoviricetes","Articulavirales","Orthomyxoviridae","Gammainfluenzavirus","Influenza C virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Polyploviricotina","Insthoviricetes",null,"Articulavirales",null,"Orthomyxoviridae",null,"Gammainfluenzavirus",null,"Influenza C virus"],
- hint:"7 segments (not 8); HEF protein instead of separate HA+NA; causes only mild respiratory illness.",
+ hint:"Seven-segment genome encoding a single multifunctional surface protein (HEF) that combines receptor-binding, fusion, and receptor-destroying activities; pigs are an important reservoir.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/EM_of_influenza_virus.jpg/320px-EM_of_influenza_virus.jpg",caption:"Influenza virion (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:EM_of_influenza_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -570,21 +574,21 @@ const VIRUS_DB = [
  classic:["Viruses","Mononegavirales","Filoviridae",null,"Orthoebolavirus","Ebola virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Filoviridae","Orthoebolavirus","Ebola virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Filoviridae",null,"Orthoebolavirus",null,"Ebola virus"],
- hint:"Characteristic shepherd's-crook morphology; ~50-90% CFR; 2013-2016 West Africa epidemic killed 11,000.",
+ hint:"Filamentous negative-sense RNA virus; virions adopt a characteristic bent shape under EM; NPC1 is a critical intracellular receptor; fruit bats suspected reservoir; among the highest CFRs of any human pathogen.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Ebola_virus_em.png/320px-Ebola_virus_em.png",caption:"Ebola virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Ebola_virus_em.png",credit:"CDC/PHIL — public domain"}},
 
 {name:"Sudan virus",binomial:"Orthoebolavirus sudanense",
  classic:["Viruses","Mononegavirales","Filoviridae",null,"Orthoebolavirus","Sudan virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Filoviridae","Orthoebolavirus","Sudan virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Filoviridae",null,"Orthoebolavirus",null,"Sudan virus"],
- hint:"~50% CFR; caused 2022 Uganda outbreak; no approved vaccine as of 2024.",
+ hint:"Second member of its genus; shares the same filamentous architecture as its more infamous relative but is antigenically distinct; ~50% CFR; existing vaccines for its congener are not cross-protective.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Ebola_virus_em.png/320px-Ebola_virus_em.png",caption:"Filovirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Ebola_virus_em.png",credit:"CDC/PHIL — public domain"}},
 
 {name:"Marburg virus",binomial:"Orthomarburgvirus marburgense",
  classic:["Viruses","Mononegavirales","Filoviridae",null,"Orthomarburgvirus","Marburg virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Filoviridae","Orthomarburgvirus","Marburg virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Filoviridae",null,"Orthomarburgvirus",null,"Marburg virus"],
- hint:"First filovirus identified (Germany, 1967); Egyptian fruit bat (Rousettus aegyptiacus) reservoir.",
+ hint:"First filovirus ever identified; initial outbreak traced to imported African green monkeys used in vaccine production; Rousettus aegyptiacus fruit bats are the confirmed natural reservoir.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Ebola_virus_em.png/320px-Ebola_virus_em.png",caption:"Filovirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Ebola_virus_em.png",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -594,14 +598,14 @@ const VIRUS_DB = [
  classic:["Viruses","Mononegavirales","Rhabdoviridae",null,"Lyssavirus","Rabies lyssavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Rhabdoviridae","Lyssavirus","Rabies lyssavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Rhabdoviridae",null,"Lyssavirus",null,"Rabies lyssavirus"],
- hint:"Bullet-shaped; retrograde axonal transport to brain; ~100% fatal once symptoms appear; ~59,000 deaths/year globally.",
+ hint:"Bullet-shaped negative-sense ssRNA virus that travels retrograde along axons to the central nervous system; G protein is the key neutralization target; post-exposure prophylaxis is highly effective if given before symptom onset.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Rabies_virus_replication.jpg/320px-Rabies_virus_replication.jpg",caption:"Rabies virus bullet-shaped virions (TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Rabies_virus_replication.jpg",credit:"Wikimedia Commons — CC BY-SA"}},
 
 {name:"Vesicular stomatitis Indiana virus",binomial:"Vesiculovirus indianense",
  classic:["Viruses","Mononegavirales","Rhabdoviridae",null,"Vesiculovirus","Vesicular stomatitis Indiana virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Rhabdoviridae","Vesiculovirus","Vesicular stomatitis Indiana virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Rhabdoviridae",null,"Vesiculovirus",null,"Vesicular stomatitis Indiana virus"],
- hint:"VSV; premier model rhabdovirus; pseudotyped VSV is used as a BSL-2 surrogate for Ebola and other BSL-4 pathogens.",
+ hint:"Prototype vesiculovirus; G protein pseudotyping makes it a workhorse BSL-2 surrogate for studying entry of high-containment pathogens; infects insects and livestock via biting arthropods.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Rabies_virus_replication.jpg/320px-Rabies_virus_replication.jpg",caption:"Rhabdovirus (bullet-shaped, TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Rabies_virus_replication.jpg",credit:"Wikimedia Commons — CC BY-SA"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -611,49 +615,49 @@ const VIRUS_DB = [
  classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Morbillivirus","Measles morbillivirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Morbillivirus","Measles morbillivirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Morbillivirus",null,"Measles morbillivirus"],
- hint:"R₀ ~12–18; Koplik spots pathognomonic; can cause subacute sclerosing panencephalitis years later.",
+ hint:"Has one of the highest R₀ values (~12–18) of any known pathogen; characteristic enanthem on buccal mucosa is pathognomonic; can persist in the CNS and re-emerge years later as a fatal slow viral encephalitis.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Measles_virus.jpg/320px-Measles_virus.jpg",caption:"Measles virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Measles_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Mumps rubulavirus",binomial:"Rubulavirus parotitidis",
  classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Rubulavirus","Mumps rubulavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Rubulavirus","Mumps rubulavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Rubulavirinae","Rubulavirus",null,"Mumps rubulavirus"],
- hint:"Parotid gland swelling; orchitis and sensorineural hearing loss as complications; MMR vaccine.",
+ hint:"Rubulavirus that preferentially targets glandular and neural tissue; covered by a widely used trivalent childhood vaccine alongside two other paramyxo- and togaviruses.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Measles_virus.jpg/320px-Measles_virus.jpg",caption:"Paramyxovirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Measles_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Nipah henipavirus",binomial:"Henipavirus nipahense",
  classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Henipavirus","Nipah henipavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Henipavirus","Nipah henipavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Henipavirus",null,"Nipah henipavirus"],
- hint:"Pteropus fruit bats are reservoir; WHO Priority Pathogen; person-to-person transmission in Bangladesh.",
+ hint:"Henipavirus with a large, pleomorphic envelope; Pteropus fruit bats are reservoir; uses ephrin-B2/B3 as receptor; person-to-person chains documented; WHO Blueprint Priority Pathogen.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Nipah_virus_TEM_lores.jpg/320px-Nipah_virus_TEM_lores.jpg",caption:"Nipah virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Nipah_virus_TEM_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Hendra henipavirus",binomial:"Henipavirus hendraense",
  classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Henipavirus","Hendra henipavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Henipavirus","Hendra henipavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Henipavirus",null,"Hendra henipavirus"],
- hint:"Named after Brisbane suburb; bats → horses → humans; equine vaccine (Equivac HeV) available.",
+ hint:"Henipavirus first isolated after a cluster of fatal respiratory illness in horses and their trainer near Brisbane; uses ephrin-B2 as receptor; first licensed henipavirus vaccine is equine.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Nipah_virus_TEM_lores.jpg/320px-Nipah_virus_TEM_lores.jpg",caption:"Henipavirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Nipah_virus_TEM_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Langya henipavirus",binomial:"Henipavirus langyadense",
  classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Henipavirus","Langya henipavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Henipavirus","Langya henipavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Henipavirus",null,"Langya henipavirus"],
- hint:"Newly identified (2022) in China; shrews are primary reservoir; no human-to-human spread detected yet.",
+ hint:"Zoonotic henipavirus first described in 2022 from febrile patients in eastern China; genomic surveillance of shrews identified the reservoir; belongs to the same genus as two better-known bat-origin henipaviruses.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Nipah_virus_TEM_lores.jpg/320px-Nipah_virus_TEM_lores.jpg",caption:"Henipavirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Nipah_virus_TEM_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Sendai virus",binomial:"Respirovirus muris",
  classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Respirovirus","Sendai virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Respirovirus","Sendai virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Respirovirus",null,"Sendai virus"],
- hint:"Mouse parainfluenza virus 1; first viral vector used to generate iPSCs via Yamanaka factor delivery.",
+ hint:"Prototype Respirovirus; infects rodent respiratory tracts and is a significant pathogen in laboratory mouse colonies; its RNA genome was harnessed as a non-integrating vector for delivering reprogramming factors.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Measles_virus.jpg/320px-Measles_virus.jpg",caption:"Paramyxovirus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Measles_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Newcastle disease virus",binomial:"Orthoavulavirus javaense",
  classic:["Viruses","Mononegavirales","Paramyxoviridae",null,"Orthoavulavirus","Newcastle disease virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Paramyxoviridae","Orthoavulavirus","Newcastle disease virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Paramyxoviridae","Orthoparamyxovirinae","Orthoavulavirus",null,"Newcastle disease virus"],
- hint:"Devastating poultry pathogen; velogenic strains cause systemic hemorrhage; under investigation as oncolytic virus.",
+ hint:"Avian paramyxovirus with a cleavage site in the fusion protein that determines pathotype; velogenic strains devastate poultry flocks; oncolytic properties exploited in cancer research.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Measles_virus.jpg/320px-Measles_virus.jpg",caption:"Paramyxovirus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Measles_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -663,14 +667,14 @@ const VIRUS_DB = [
  classic:["Viruses","Mononegavirales","Pneumoviridae",null,"Orthopneumovirus","Respiratory syncytial virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Pneumoviridae","Orthopneumovirus","Respiratory syncytial virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Pneumoviridae",null,"Orthopneumovirus",null,"Respiratory syncytial virus"],
- hint:"RSV; leading cause of infant bronchiolitis; mRNA vaccines approved 2023.",
+ hint:"Pneumovirus with a non-segmented negative-sense genome; F protein undergoes dramatic pre- to post-fusion conformational change; prefusion F is the key vaccine antigen; mRNA and protein-subunit vaccines approved 2023.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/RSV_Respiratory_Syncytial_Virus.jpg/320px-RSV_Respiratory_Syncytial_Virus.jpg",caption:"RSV (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:RSV_Respiratory_Syncytial_Virus.jpg",credit:"CDC — public domain"}},
 
 {name:"Human metapneumovirus",binomial:"Metapneumovirus hominis",
  classic:["Viruses","Mononegavirales","Pneumoviridae",null,"Metapneumovirus","Human metapneumovirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Monjiviricetes","Mononegavirales","Pneumoviridae","Metapneumovirus","Human metapneumovirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Monjiviricetes",null,"Mononegavirales",null,"Pneumoviridae",null,"Metapneumovirus",null,"Human metapneumovirus"],
- hint:"Second leading cause of infant lower respiratory infection after RSV; discovered 2001.",
+ hint:"Discovered in 2001 from children with unexplained respiratory illness in the Netherlands; closely related to avian pneumoviruses; no approved vaccine; a leading unmet need in pediatric infectious disease.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/RSV_Respiratory_Syncytial_Virus.jpg/320px-RSV_Respiratory_Syncytial_Virus.jpg",caption:"Pneumovirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:RSV_Respiratory_Syncytial_Virus.jpg",credit:"CDC — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -680,56 +684,56 @@ const VIRUS_DB = [
  classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","Dengue virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","Dengue virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"Dengue virus"],
- hint:"4 serotypes; Aedes mosquito vector; secondary heterotypic infection risks severe dengue; 400 million infections/year.",
+ hint:"Four antigenically distinct serotypes; antibody-dependent enhancement (ADE) during secondary heterotypic infection can cause vascular leak and shock; Aedes aegypti primary vector; ~400 million infections/year.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Dengue_virus_TEM.jpg/320px-Dengue_virus_TEM.jpg",caption:"Dengue virus (TEM, CDC/PHIL)",srcUrl:"https://commons.wikimedia.org/wiki/File:Dengue_virus_TEM.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Zika virus",binomial:"Orthoflavivirus zikaense",
  classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","Zika virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","Zika virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"Zika virus"],
- hint:"Congenital microcephaly; sexually transmitted flavivirus; Guillain-Barré syndrome; 2015-16 pandemic.",
+ hint:"Flavivirus that crosses the placenta and disrupts fetal cortical neurogenesis; uniquely sexually transmissible among arboviruses; associated with post-infectious demyelinating polyneuropathy; declared a PHEIC in 2016.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Zika_EM_CDC_20541.png/320px-Zika_EM_CDC_20541.png",caption:"Zika virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Zika_EM_CDC_20541.png",credit:"CDC — public domain"}},
 
 {name:"West Nile virus",binomial:"Orthoflavivirus nilense",
  classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","West Nile virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","West Nile virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"West Nile virus"],
- hint:"Bird–Culex cycle; reached North America 1999; neuroinvasive disease in <1% of infections.",
+ hint:"Enzootic cycle between Culex mosquitoes and corvid/passerine birds; arrived in the Americas in 1999 and spread continent-wide within four years; neuroinvasive disease occurs in <1% of infections.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/West_Nile_virus_EM.jpg/320px-West_Nile_virus_EM.jpg",caption:"West Nile virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:West_Nile_virus_EM.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Yellow fever virus",binomial:"Orthoflavivirus flavi",
  classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","Yellow fever virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","Yellow fever virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"Yellow fever virus"],
- hint:"17D live attenuated vaccine (1930s); sylvatic monkey-mosquito cycle; namesake: jaundice.",
+ hint:"17D live-attenuated vaccine developed in the 1930s remains the gold standard; sylvatic cycle in non-human primates; urban cycle amplified by Aedes aegypti; the clinical sign that gave this virus its common name reflects hepatic involvement causing icterus.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Dengue_virus_TEM.jpg/320px-Dengue_virus_TEM.jpg",caption:"Flavivirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Dengue_virus_TEM.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Japanese encephalitis virus",binomial:"Orthoflavivirus japonicum",
  classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","Japanese encephalitis virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","Japanese encephalitis virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"Japanese encephalitis virus"],
- hint:"Leading cause of viral encephalitis in Asia; Culex mosquito; pigs and wading birds amplify virus.",
+ hint:"Leading cause of viral encephalitis across Asia; Culex tritaeniorhynchus is the main vector; domestic pigs and wading birds (ardeid) are amplifying hosts; safe inactivated and live-attenuated vaccines exist.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Dengue_virus_TEM.jpg/320px-Dengue_virus_TEM.jpg",caption:"Flavivirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Dengue_virus_TEM.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Tick-borne encephalitis virus",binomial:"Orthoflavivirus encephalitidis",
  classic:["Viruses","Amarillovirales","Flaviviridae",null,"Orthoflavivirus","Tick-borne encephalitis virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Orthoflavivirus","Tick-borne encephalitis virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Orthoflavivirus",null,"Tick-borne encephalitis virus"],
- hint:"Ixodes tick; endemic in forested Europe and Asia; vaccine available; can also spread via raw milk.",
+ hint:"Tick-borne flavivirus transmitted by Ixodes ricinus/persulcatus; biphasic illness with an initial viraemic phase followed by neurological disease; can be acquired by consuming unpasteurised dairy; highly effective TBE vaccines licensed in Europe.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Dengue_virus_TEM.jpg/320px-Dengue_virus_TEM.jpg",caption:"Flavivirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Dengue_virus_TEM.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Hepatitis C virus",binomial:"Hepacivirus hominis",
  classic:["Viruses","Amarillovirales","Flaviviridae",null,"Hepacivirus","Hepatitis C virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Hepacivirus","Hepatitis C virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Hepacivirus",null,"Hepatitis C virus"],
- hint:"Blood-borne; ~70% progress to chronic infection; cured by direct-acting antivirals (95% SVR).",
+ hint:"Highly mutable positive-sense ssRNA virus; establishes chronic infection in ~70% of exposed individuals via immune evasion; NS3/4A protease and NS5B polymerase are targets of direct-acting antivirals achieving >95% cure rates.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Dengue_virus_TEM.jpg/320px-Dengue_virus_TEM.jpg",caption:"Hepacivirus (Flaviviridae, TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Dengue_virus_TEM.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Bovine viral diarrhea virus",binomial:"Pestivirus bovinarum",
  classic:["Viruses","Amarillovirales","Flaviviridae",null,"Pestivirus","Bovine viral diarrhea virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Flasuviricetes","Amarillovirales","Flaviviridae","Pestivirus","Bovine viral diarrhea virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Flasuviricetes",null,"Amarillovirales",null,"Flaviviridae",null,"Pestivirus",null,"Bovine viral diarrhea virus"],
- hint:"BVDV; immunosuppressive cattle pathogen; frequently contaminates fetal bovine serum used in cell culture.",
+ hint:"Pestivirus of cattle; immunosuppressive; two biotypes (cytopathic and non-cytopathic); a notorious contaminant of fetal bovine serum used in cell culture, complicating in vitro research.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Dengue_virus_TEM.jpg/320px-Dengue_virus_TEM.jpg",caption:"Pestivirus (Flaviviridae representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Dengue_virus_TEM.jpg",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -739,42 +743,42 @@ const VIRUS_DB = [
  classic:["Viruses","Picornavirales","Picornaviridae","Enterovirinae","Enterovirus","Poliovirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Enterovirus","Poliovirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae","Enterovirinae","Enterovirus",null,"Poliovirus"],
- hint:"Fecal-oral; irreversible flaccid paralysis in <1% of cases; near-eradicated by global vaccine campaign.",
+ hint:"Fecal-oral transmission; tropism for anterior horn motor neurons causes irreversible flaccid paralysis in <1% of infections; two vaccine platforms (inactivated and live-attenuated) drove one of history's most successful eradication campaigns.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Human_rhinovirus_14.png/320px-Human_rhinovirus_14.png",caption:"Picornavirus (crystal structure representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Human_rhinovirus_14.png",credit:"Wikimedia Commons — CC BY 3.0"}},
 
 {name:"Hepatitis A virus",binomial:"Hepatovirus hominis",
  classic:["Viruses","Picornavirales","Picornaviridae",null,"Hepatovirus","Hepatitis A virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Hepatovirus","Hepatitis A virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae",null,"Hepatovirus",null,"Hepatitis A virus"],
- hint:"Fecal-oral; self-limiting hepatitis; no chronic state; vaccine-preventable.",
+ hint:"Non-enveloped picornavirus transmitted fecal-orally; unlike other hepatotropic viruses it does not establish chronic infection; classified in its own genus Hepatovirus; effective inactivated vaccines widely used.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Hepatitis_A_Virus.jpg/320px-Hepatitis_A_Virus.jpg",caption:"Hepatitis A virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Hepatitis_A_Virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Rhinovirus A",binomial:"Enterovirus rhinovirus-A",
  classic:["Viruses","Picornavirales","Picornaviridae","Enterovirinae","Enterovirus","Rhinovirus A"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Enterovirus","Rhinovirus A"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae","Enterovirinae","Enterovirus",null,"Rhinovirus A"],
- hint:"Most common cause of the common cold; >100 serotypes; replicates best at 33°C nasal temperature.",
+ hint:"Over 160 serotypes make durable immunity essentially impossible; classified within Enterovirus; optimal replication at ~33°C suits the nasal epithelium; ICAM-1 is receptor for the major group.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Human_rhinovirus_14.png/320px-Human_rhinovirus_14.png",caption:"Rhinovirus 14 (crystal structure)",srcUrl:"https://commons.wikimedia.org/wiki/File:Human_rhinovirus_14.png",credit:"Wikimedia Commons — CC BY 3.0"}},
 
 {name:"Enterovirus D68",binomial:"Enterovirus D68",
  classic:["Viruses","Picornavirales","Picornaviridae","Enterovirinae","Enterovirus","Enterovirus D68"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Enterovirus","Enterovirus D68"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae","Enterovirinae","Enterovirus",null,"Enterovirus D68"],
- hint:"Linked to acute flaccid myelitis in children; primarily respiratory; biennial US outbreaks.",
+ hint:"Non-polio enterovirus with unexpected neurotropism; biennial US outbreaks with peaks in late summer/autumn; associated with acute flaccid myelitis in children; ICAM-5 implicated as receptor.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Human_rhinovirus_14.png/320px-Human_rhinovirus_14.png",caption:"Enterovirus (picornavirus representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Human_rhinovirus_14.png",credit:"Wikimedia Commons — CC BY 3.0"}},
 
 {name:"Foot-and-mouth disease virus",binomial:"Aphthovirus bovinum",
  classic:["Viruses","Picornavirales","Picornaviridae",null,"Aphthovirus","Foot-and-mouth disease virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Aphthovirus","Foot-and-mouth disease virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae",null,"Aphthovirus",null,"Foot-and-mouth disease virus"],
- hint:"7 serotypes; catastrophic 2001 UK outbreak; most livestock-devastating virus globally; highly acid-labile.",
+ hint:"Seven serotypes with no cross-protection; exceptionally high infectivity (ID₅₀ < 10 particles); highly acid-labile; infects cloven-hoofed livestock; the 2001 UK epizootic triggered culling of >6 million animals.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Human_rhinovirus_14.png/320px-Human_rhinovirus_14.png",caption:"Picornavirus (representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Human_rhinovirus_14.png",credit:"Wikimedia Commons — CC BY 3.0"}},
 
 {name:"Encephalomyocarditis virus",binomial:"Cardiovirus encephalomyocarditidis",
  classic:["Viruses","Picornavirales","Picornaviridae",null,"Cardiovirus","Encephalomyocarditis virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Picornavirales","Picornaviridae","Cardiovirus","Encephalomyocarditis virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Picornavirales",null,"Picornaviridae",null,"Cardiovirus",null,"Encephalomyocarditis virus"],
- hint:"EMCV; rodent reservoir; causes myocarditis; widely used in immunology and IRES research.",
+ hint:"Cardiovirus with a natural rodent reservoir; the IRES element in its 5′ UTR was among the first discovered and is widely used to drive cap-independent translation in bicistronic expression vectors.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Human_rhinovirus_14.png/320px-Human_rhinovirus_14.png",caption:"Cardiovirus (representative picornavirus)",srcUrl:"https://commons.wikimedia.org/wiki/File:Human_rhinovirus_14.png",credit:"Wikimedia Commons — CC BY 3.0"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -784,14 +788,14 @@ const VIRUS_DB = [
  classic:["Viruses","Calicivirales","Caliciviridae",null,"Norovirus","Norovirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Calicivirales","Caliciviridae","Norovirus","Norovirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Calicivirales",null,"Caliciviridae","Norovirinae","Norovirus",null,"Norovirus"],
- hint:"Leading cause of viral gastroenteritis worldwide; infectious dose ~18 virions; very stable on surfaces.",
+ hint:"Non-enveloped positive-sense ssRNA; extremely low infectious dose (~18 virions); attacks the proximal small intestinal epithelium; notorious for causing outbreaks on cruise ships and in healthcare settings; no approved vaccine.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Norovirus.jpg/320px-Norovirus.jpg",caption:"Norovirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Norovirus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Rabbit hemorrhagic disease virus",binomial:"Lagovirus europaeus",
  classic:["Viruses","Calicivirales","Caliciviridae",null,"Lagovirus","Rabbit hemorrhagic disease virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Calicivirales","Caliciviridae","Lagovirus","Rabbit hemorrhagic disease virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Calicivirales",null,"Caliciviridae","Lagovirinae","Lagovirus",null,"Rabbit hemorrhagic disease virus"],
- hint:"Devastates wild and domestic rabbits; used as biocontrol in Australia and New Zealand; RHDV2 variant appeared 2010.",
+ hint:"Lagovirus causing acute necrotising hepatitis in lagomorphs; introduced deliberately into Australia and New Zealand for pest control; a more virulent and antigenically distinct variant emerged in Europe around 2010 and has now spread globally.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Norovirus.jpg/320px-Norovirus.jpg",caption:"Calicivirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Norovirus.jpg",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -801,28 +805,28 @@ const VIRUS_DB = [
  classic:["Viruses","Martellivirales","Togaviridae",null,"Alphavirus","Chikungunya virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Togaviridae","Alphavirus","Chikungunya virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Togaviridae",null,"Alphavirus",null,"Chikungunya virus"],
- hint:"Swahili: 'that which bends up'; Aedes mosquito; debilitating arthralgia lasting months to years.",
+ hint:"Alphavirus whose name derives from a Swahili/Makonde description of the stooped posture of affected patients; Aedes aegypti and albopictus vectors; arthralgia can persist for months to years; icosahedral enveloped virion.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Chikungunya_Virus_TEM.jpg/320px-Chikungunya_Virus_TEM.jpg",caption:"Chikungunya virus (TEM, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:Chikungunya_Virus_TEM.jpg",credit:"NIAID — CC BY 2.0"}},
 
 {name:"Eastern equine encephalitis virus",binomial:"Alphavirus equiencephalitidis",
  classic:["Viruses","Martellivirales","Togaviridae",null,"Alphavirus","Eastern equine encephalitis virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Togaviridae","Alphavirus","Eastern equine encephalitis virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Togaviridae",null,"Alphavirus",null,"Eastern equine encephalitis virus"],
- hint:"EEEV; rare but ~30% CFR; neurological sequelae common; Culiseta melanura mosquito vector.",
+ hint:"Alphavirus maintained in a Culiseta melanura–songbird enzootic cycle in freshwater swamp habitats; spillover to humans and equines is rare but carries one of the highest CFRs (~30%) of any arbovirus.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Chikungunya_Virus_TEM.jpg/320px-Chikungunya_Virus_TEM.jpg",caption:"Alphavirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Chikungunya_Virus_TEM.jpg",credit:"NIAID — CC BY 2.0"}},
 
 {name:"Sindbis virus",binomial:"Alphavirus sindbisense",
  classic:["Viruses","Martellivirales","Togaviridae",null,"Alphavirus","Sindbis virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Togaviridae","Alphavirus","Sindbis virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Togaviridae",null,"Alphavirus",null,"Sindbis virus"],
- hint:"Prototype alphavirus; causes Pogosta disease in Scandinavia; Culex mosquito; key research model.",
+ hint:"Prototype alphavirus; causes arthralgia and rash in northern Europe (known locally as Pogosta disease in Finland); Culex mosquitoes and passerine birds maintain the cycle; widely used as a model for alphavirus replication.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Chikungunya_Virus_TEM.jpg/320px-Chikungunya_Virus_TEM.jpg",caption:"Alphavirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Chikungunya_Virus_TEM.jpg",credit:"NIAID — CC BY 2.0"}},
 
 {name:"Rubella virus",binomial:"Rubivirus rubellae",
  classic:["Viruses","Martellivirales","Matonaviridae",null,"Rubivirus","Rubella virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Matonaviridae","Rubivirus","Rubella virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Matonaviridae",null,"Rubivirus",null,"Rubella virus"],
- hint:"German measles; congenital rubella syndrome causes deafness and cardiac defects; MMR vaccine.",
+ hint:"The sole member of Matonaviridae; positive-sense ssRNA; teratogenic when acquired in the first trimester, causing sensorineural hearing loss, cataracts, and congenital heart defects; covered by a trivalent childhood vaccine.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Rubella_virus.jpg/320px-Rubella_virus.jpg",caption:"Rubella virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Rubella_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -832,7 +836,7 @@ const VIRUS_DB = [
  classic:["Viruses","Hepeviales","Hepeviridae",null,"Paslahepevirus","Hepatitis E virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Hepeviricetes","Hepeviales","Hepeviridae","Paslahepevirus","Hepatitis E virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Hepeviricetes",null,"Hepeviales",null,"Hepeviridae","Orthohepevirinae","Paslahepevirus",null,"Hepatitis E virus"],
- hint:"Fecal-oral; up to 30% mortality in pregnancy; pigs are major zoonotic reservoir in industrialized nations.",
+ hint:"Positive-sense ssRNA virus in its own family; fecal-oral transmission; four genotypes with distinct epidemiology; genotypes 3 and 4 are zoonotic from swine in high-income countries; mortality up to 30% in pregnant women (genotype 1/2).",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Hepatitis_E_virus.jpg/320px-Hepatitis_E_virus.jpg",caption:"Hepatitis E virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Hepatitis_E_virus.jpg",credit:"CDC — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -842,56 +846,56 @@ const VIRUS_DB = [
  classic:["Viruses","Bunyavirales","Arenaviridae",null,"Mammarenavirus","Lassa mammarenavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Arenaviridae","Mammarenavirus","Lassa mammarenavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Arenaviridae","Mammarenavirinae","Mammarenavirus",null,"Lassa mammarenavirus"],
- hint:"Mastomys rat reservoir; endemic in West Africa; 300,000–500,000 cases/year; ambisense RNA.",
+ hint:"Ambisense ssRNA arenavirus; Mastomys natalensis multimammate rat is the primary reservoir; uses α-dystroglycan as receptor; 80% of infections are subclinical; deafness is a common sequela of severe disease.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Lassa_fever_virus.jpg/320px-Lassa_fever_virus.jpg",caption:"Lassa virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Lassa_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Junin mammarenavirus",binomial:"Mammarenavirus juninense",
  classic:["Viruses","Bunyavirales","Arenaviridae",null,"Mammarenavirus","Junin mammarenavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Arenaviridae","Mammarenavirus","Junin mammarenavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Arenaviridae","Mammarenavirinae","Mammarenavirus",null,"Junin mammarenavirus"],
- hint:"Causes Argentine hemorrhagic fever; Calomys musculinus rodent reservoir; live attenuated Candid#1 vaccine.",
+ hint:"New World arenavirus with a Calomys musculinus rodent reservoir in the Argentine Pampas; causes haemorrhagic fever with thrombocytopaenia; a live-attenuated vaccine (Candid#1) is available but only in Argentina.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Lassa_fever_virus.jpg/320px-Lassa_fever_virus.jpg",caption:"Arenavirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Lassa_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Lymphocytic choriomeningitis mammarenavirus",binomial:"Mammarenavirus choriomeningitidis",
  classic:["Viruses","Bunyavirales","Arenaviridae",null,"Mammarenavirus","Lymphocytic choriomeningitis mammarenavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Arenaviridae","Mammarenavirus","Lymphocytic choriomeningitis mammarenavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Arenaviridae","Mammarenavirinae","Mammarenavirus",null,"Lymphocytic choriomeningitis mammarenavirus"],
- hint:"LCMV; house mouse reservoir; prototype arenavirus and key immunology model; Zinkernagel & Doherty Nobel Prize 1996.",
+ hint:"Prototype arenavirus; house mouse is the natural reservoir; established the concepts of MHC-restricted T-cell recognition for which the 1996 Nobel Prize in Physiology or Medicine was awarded; widely used to study viral immunology.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Lassa_fever_virus.jpg/320px-Lassa_fever_virus.jpg",caption:"Arenavirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Lassa_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Hantavirus",binomial:"Orthohantavirus sinnonbreense",
  classic:["Viruses","Bunyavirales","Hantaviridae",null,"Orthohantavirus","Hantavirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Hantaviridae","Orthohantavirus","Hantavirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Hantaviridae","Mammantavirinae","Orthohantavirus",null,"Hantavirus"],
- hint:"Inhaled rodent excreta; no person-to-person transmission; HPS in Americas, HFRS in Eurasia.",
+ hint:"Negative-sense tripartite RNA genome; each species co-evolved with a specific rodent host; acquired by inhalation of aerosolised excreta; causes pulmonary syndrome in the Americas and haemorrhagic fever with renal syndrome in Eurasia.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Lassa_fever_virus.jpg/320px-Lassa_fever_virus.jpg",caption:"Bunyavirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Lassa_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Rift Valley fever phlebovirus",binomial:"Phlebovirus riftvalleyense",
  classic:["Viruses","Bunyavirales","Phenuiviridae",null,"Phlebovirus","Rift Valley fever phlebovirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Phenuiviridae","Phlebovirus","Rift Valley fever phlebovirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Phenuiviridae","Phlebovirinae","Phlebovirus",null,"Rift Valley fever phlebovirus"],
- hint:"Mosquito-borne; epizootic in livestock triggers human hemorrhagic fever outbreaks in Africa.",
+ hint:"Mosquito-borne phlebovirus; causes periodic epizootics in ruminants (with abortion storms and high neonatal mortality) that precede human outbreaks; associated with dam construction and flooding events that expand vector habitat.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Lassa_fever_virus.jpg/320px-Lassa_fever_virus.jpg",caption:"Phlebovirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Lassa_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Crimean-Congo hemorrhagic fever orthonairovirus",binomial:"Orthonairovirus haemorrhagiae",
  classic:["Viruses","Bunyavirales","Nairoviridae",null,"Orthonairovirus","Crimean-Congo hemorrhagic fever orthonairovirus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Nairoviridae","Orthonairovirus","Crimean-Congo hemorrhagic fever orthonairovirus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Nairoviridae",null,"Orthonairovirus",null,"Crimean-Congo hemorrhagic fever orthonairovirus"],
- hint:"Hyalomma tick vector; widest geographic range of any tick-borne hemorrhagic fever virus.",
+ hint:"Nairovirus with the widest geographic distribution of any tick-borne haemorrhagic fever agent; Hyalomma ticks are both vector and reservoir; livestock serve as amplifying hosts without showing disease; healthcare workers at high risk from nosocomial transmission.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Lassa_fever_virus.jpg/320px-Lassa_fever_virus.jpg",caption:"Nairovirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Lassa_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Oropouche virus",binomial:"Orthobunyavirus oropoucheense",
  classic:["Viruses","Bunyavirales","Peribunyaviridae",null,"Orthobunyavirus","Oropouche virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Peribunyaviridae","Orthobunyavirus","Oropouche virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Peribunyaviridae",null,"Orthobunyavirus",null,"Oropouche virus"],
- hint:"Culicoides midges; causes Oropouche fever in Amazon basin; 2024 WHO outbreak with vertical transmission concerns.",
+ hint:"Orthobunyavirus transmitted by Culicoides paraensis midges; causes a febrile illness with severe myalgia in the Amazon basin; declared a WHO outbreak in 2024 after evidence of possible vertical (mother-to-fetus) transmission.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Lassa_fever_virus.jpg/320px-Lassa_fever_virus.jpg",caption:"Bunyavirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Lassa_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"La Crosse virus",binomial:"Orthobunyavirus lacrosseense",
  classic:["Viruses","Bunyavirales","Peribunyaviridae",null,"Orthobunyavirus","La Crosse virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Negarnaviricota","Ellioviricetes","Bunyavirales","Peribunyaviridae","Orthobunyavirus","La Crosse virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Negarnaviricota","Haploviricotina","Ellioviricetes",null,"Bunyavirales",null,"Peribunyaviridae",null,"Orthobunyavirus",null,"La Crosse virus"],
- hint:"Leading cause of pediatric arboviral encephalitis in USA; Aedes triseriatus mosquito; squirrel reservoir.",
+ hint:"California serogroup orthobunyavirus maintained in an Aedes triseriatus–eastern chipmunk/squirrel cycle; leading cause of paediatric arboviral encephalitis in the USA; transovarial transmission in mosquitoes.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Lassa_fever_virus.jpg/320px-Lassa_fever_virus.jpg",caption:"Bunyavirus (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Lassa_fever_virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -901,21 +905,21 @@ const VIRUS_DB = [
  classic:["Viruses","Reovirales","Sedoreoviridae",null,"Rotavirus","Rotavirus A"],
  simple: ["Viruses","Riboviria","Orthornavirae","Duplornaviricota","Resentoviricetes","Reovirales","Sedoreoviridae","Rotavirus","Rotavirus A"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Duplornaviricota",null,"Resentoviricetes",null,"Reovirales",null,"Sedoreoviridae",null,"Rotavirus",null,"Rotavirus A"],
- hint:"11-segment dsRNA; wheel-like TEM morphology; leading cause of childhood diarrheal deaths globally.",
+ hint:"11-segment double-stranded RNA genome enclosed in a triple-layered icosahedral capsid; wheel-like appearance under negative-stain TEM gave it its name; VP4 and VP7 define serotype; infects small intestinal enterocytes causing osmotic diarrhoea.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Rotavirus_Reconstruction.jpg/320px-Rotavirus_Reconstruction.jpg",caption:"Rotavirus (cryo-EM reconstruction)",srcUrl:"https://commons.wikimedia.org/wiki/File:Rotavirus_Reconstruction.jpg",credit:"Wikimedia Commons — public domain"}},
 
 {name:"Bluetongue virus",binomial:"Orbivirus bluetongueense",
  classic:["Viruses","Reovirales","Sedoreoviridae",null,"Orbivirus","Bluetongue virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Duplornaviricota","Resentoviricetes","Reovirales","Sedoreoviridae","Orbivirus","Bluetongue virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Duplornaviricota",null,"Resentoviricetes",null,"Reovirales",null,"Sedoreoviridae",null,"Orbivirus",null,"Bluetongue virus"],
- hint:"28+ serotypes; Culicoides midge vector; affects sheep/cattle; tongue cyanosis in severe cases.",
+ hint:"Orbivirus with 28+ serotypes transmitted by Culicoides midges; infects ruminants; severe haemorrhage and oedema of the head and neck can cause cyanosis of the oral mucosa; requires high-containment in many countries.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Rotavirus_Reconstruction.jpg/320px-Rotavirus_Reconstruction.jpg",caption:"Reovirus (representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Rotavirus_Reconstruction.jpg",credit:"Wikimedia Commons — public domain"}},
 
 {name:"Reovirus type 3 Dearing",binomial:"Orthoreovirus reoense",
  classic:["Viruses","Reovirales","Sedoreoviridae",null,"Orthoreovirus","Reovirus type 3 Dearing"],
  simple: ["Viruses","Riboviria","Orthornavirae","Duplornaviricota","Resentoviricetes","Reovirales","Sedoreoviridae","Orthoreovirus","Reovirus type 3 Dearing"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Duplornaviricota",null,"Resentoviricetes",null,"Reovirales",null,"Sedoreoviridae",null,"Orthoreovirus",null,"Reovirus type 3 Dearing"],
- hint:"Prototype dsRNA virus; foundational innate immunity model; used as oncolytic virus candidate (Reolysin).",
+ hint:"Prototype reovirus; non-enveloped dsRNA virus whose name reflects its isolation from the respiratory and enteric tracts of healthy humans; preferentially kills Ras-transformed tumour cells, leading to clinical trials as an oncolytic agent.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Rotavirus_Reconstruction.jpg/320px-Rotavirus_Reconstruction.jpg",caption:"Reovirus (representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Rotavirus_Reconstruction.jpg",credit:"Wikimedia Commons — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -925,42 +929,42 @@ const VIRUS_DB = [
  classic:["Viruses","Ortervirales","Retroviridae",null,"Lentivirus","HIV-1"],
  simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Retroviridae","Lentivirus","HIV-1"],
  full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Retroviridae","Orthoretrovirinae","Lentivirus",null,"HIV-1"],
- hint:"Reverse transcribes RNA → DNA provirus; depletes CD4+ T cells causing AIDS; ~40 million people living with HIV.",
+ hint:"Lentivirus with a cone-shaped capsid; uses CD4 plus CCR5 or CXCR4 as co-receptors; integrase inserts the provirus at sites of active transcription; targets and depletes CD4⁺ helper T cells; ~40 million people currently living with infection.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/HIV-budding-Color.jpg/320px-HIV-budding-Color.jpg",caption:"HIV-1 budding from T cell (SEM, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:HIV-budding-Color.jpg",credit:"NIAID — public domain"}},
 
 {name:"HIV-2",binomial:"Lentivirus humimdef2",
  classic:["Viruses","Ortervirales","Retroviridae",null,"Lentivirus","HIV-2"],
  simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Retroviridae","Lentivirus","HIV-2"],
  full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Retroviridae","Orthoretrovirinae","Lentivirus",null,"HIV-2"],
- hint:"Less transmissible than HIV-1; slower AIDS progression; predominantly West Africa; sooty mangabey origin.",
+ hint:"A second lentivirus capable of causing AIDS; independently zoonotically acquired from sooty mangabeys; lower plasma viral loads than its relative; predominantly circulates in West Africa; displays partial cross-protection with its congener.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/HIV-budding-Color.jpg/320px-HIV-budding-Color.jpg",caption:"HIV budding (SEM, NIAID)",srcUrl:"https://commons.wikimedia.org/wiki/File:HIV-budding-Color.jpg",credit:"NIAID — public domain"}},
 
 {name:"Hepatitis B virus",binomial:"Orthohepadnavirus hominis",
  classic:["Viruses","Blubervirales","Hepadnaviridae",null,"Orthohepadnavirus","Hepatitis B virus"],
  simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Blubervirales","Hepadnaviridae","Orthohepadnavirus","Hepatitis B virus"],
  full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Blubervirales",null,"Hepadnaviridae",null,"Orthohepadnavirus",null,"Hepatitis B virus"],
- hint:"Partial dsDNA; reverse transcription; Dane particles; #1 cause of viral hepatocellular carcinoma.",
+ hint:"Partially double-stranded circular DNA genome that replicates via an RNA intermediate using reverse transcription; surface antigen particles (22 nm spheres and filaments) greatly outnumber complete Dane particles in serum; integrates into hepatocyte chromatin driving oncogenesis.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Hepatitis_B_Virus.jpg/320px-Hepatitis_B_Virus.jpg",caption:"Hepatitis B Dane particles (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Hepatitis_B_Virus.jpg",credit:"CDC — public domain"}},
 
 {name:"HTLV-1",binomial:"Deltaretrovirus primate1",
  classic:["Viruses","Ortervirales","Retroviridae",null,"Deltaretrovirus","HTLV-1"],
  simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Retroviridae","Deltaretrovirus","HTLV-1"],
  full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Retroviridae","Orthoretrovirinae","Deltaretrovirus",null,"HTLV-1"],
- hint:"Infects CD4+ T cells; causes adult T-cell leukemia/lymphoma and tropical spastic paraparesis.",
+ hint:"Deltaretrovirus that immortalises CD4⁺ T lymphocytes via the Tax oncoprotein; causes both a leukaemia/lymphoma and a slowly progressive demyelinating myelopathy; endemic in Japan, the Caribbean, and parts of Africa and South America.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/HIV-budding-Color.jpg/320px-HIV-budding-Color.jpg",caption:"Retrovirus (representative SEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:HIV-budding-Color.jpg",credit:"NIAID — public domain"}},
 
 {name:"Murine leukemia virus",binomial:"Gammaretrovirus murisleukemiae",
  classic:["Viruses","Ortervirales","Retroviridae",null,"Gammaretrovirus","Murine leukemia virus"],
  simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Retroviridae","Gammaretrovirus","Murine leukemia virus"],
  full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Retroviridae","Orthoretrovirinae","Gammaretrovirus",null,"Murine leukemia virus"],
- hint:"Classic mouse retrovirus; foundational oncogenesis model; many endogenous copies in the mouse genome.",
+ hint:"Simple gammaretrovirus; provided foundational evidence for proviral integration and insertional oncogenesis; thousands of endogenous copies have accumulated in the murine genome over evolutionary time; used as a vector backbone in early gene therapy trials.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/HIV-budding-Color.jpg/320px-HIV-budding-Color.jpg",caption:"Retrovirus (representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:HIV-budding-Color.jpg",credit:"NIAID — public domain"}},
 
 {name:"Cauliflower mosaic virus",binomial:"Caulimovirus caulimovirarum",
  classic:["Viruses","Ortervirales","Caulimoviridae",null,"Caulimovirus","Cauliflower mosaic virus"],
  simple: ["Viruses","Riboviria","Pararnavirae","Artverviricota","Revtraviricetes","Ortervirales","Caulimoviridae","Caulimovirus","Cauliflower mosaic virus"],
  full:   ["Viruses","Riboviria",null,"Pararnavirae",null,"Artverviricota",null,"Revtraviricetes",null,"Ortervirales",null,"Caulimoviridae","Caulimovirinae","Caulimovirus",null,"Cauliflower mosaic virus"],
- hint:"Plant pararetrovirus; CaMV 35S promoter is the most widely used regulatory element in transgenic plant biotechnology.",
+ hint:"DsDNA plant pararetrovirus that replicates via reverse transcription; the strong constitutive promoter in its 35S RNA has become the most widely used regulatory element in transgenic plant biotechnology worldwide.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Cauliflower_mosaic_virus.jpg/320px-Cauliflower_mosaic_virus.jpg",caption:"Cauliflower mosaic virus (TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Cauliflower_mosaic_virus.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -970,70 +974,70 @@ const VIRUS_DB = [
  classic:["Viruses","Herpesvirales","Herpesviridae","Alphaherpesvirinae","Simplexvirus","Human alphaherpesvirus 1"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Simplexvirus","Human alphaherpesvirus 1"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Alphaherpesvirinae","Simplexvirus",null,"Human alphaherpesvirus 1"],
- hint:"HSV-1; oral cold sores; latent in trigeminal ganglia; can cause fatal encephalitis.",
+ hint:"Alphaherpesvirus that establishes lifelong latency in the trigeminal ganglion; the ICP34.5 neurovirulence protein antagonises PKR; thymidine kinase is the target of acyclovir; reactivation produces lesions at the labial mucocutaneous border.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Herpes_simplex_virus_TEM_B82-0474_lores.jpg/320px-Herpes_simplex_virus_TEM_B82-0474_lores.jpg",caption:"Herpes simplex virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Herpes_simplex_virus_TEM_B82-0474_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Human alphaherpesvirus 2",binomial:"Simplexvirus humanalpha2",
  classic:["Viruses","Herpesvirales","Herpesviridae","Alphaherpesvirinae","Simplexvirus","Human alphaherpesvirus 2"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Simplexvirus","Human alphaherpesvirus 2"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Alphaherpesvirinae","Simplexvirus",null,"Human alphaherpesvirus 2"],
- hint:"HSV-2; primary genital herpes; latent in sacral dorsal root ganglia.",
+ hint:"Alphaherpesvirus closely related to its oral counterpart; latency established in sacral dorsal root ganglia; predominant cause of sporadic neonatal herpes via vertical transmission; viral shedding occurs in the absence of lesions.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Herpes_simplex_virus_TEM_B82-0474_lores.jpg/320px-Herpes_simplex_virus_TEM_B82-0474_lores.jpg",caption:"Herpes simplex virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Herpes_simplex_virus_TEM_B82-0474_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Human alphaherpesvirus 3",binomial:"Varicellovirus humanalpha3",
  classic:["Viruses","Herpesvirales","Herpesviridae","Alphaherpesvirinae","Varicellovirus","Human alphaherpesvirus 3"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Varicellovirus","Human alphaherpesvirus 3"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Alphaherpesvirinae","Varicellovirus",null,"Human alphaherpesvirus 3"],
- hint:"VZV; chickenpox on primary infection; shingles on reactivation from dorsal root ganglia.",
+ hint:"Varicellovirinae member; primary infection disseminates via a cell-associated viraemia to produce a generalised vesicular rash; long-term latency in dorsal root and cranial nerve ganglia; reactivation produces dermatomal disease with post-herpetic neuralgia.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Herpes_simplex_virus_TEM_B82-0474_lores.jpg/320px-Herpes_simplex_virus_TEM_B82-0474_lores.jpg",caption:"Herpesvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Herpes_simplex_virus_TEM_B82-0474_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Human betaherpesvirus 5",binomial:"Cytomegalovirus humanbeta5",
  classic:["Viruses","Herpesvirales","Herpesviridae","Betaherpesvirinae","Cytomegalovirus","Human betaherpesvirus 5"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Cytomegalovirus","Human betaherpesvirus 5"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Betaherpesvirinae","Cytomegalovirus",null,"Human betaherpesvirus 5"],
- hint:"CMV; largest human herpesvirus genome (~230 kb); dangerous in immunocompromised and congenitally.",
+ hint:"Betaherpesvirus with the largest genome of any human herpesvirus (~230 kb); tegument protein pp65 is an immunodominant T-cell antigen; congenital infection is the leading infectious cause of childhood sensorineural hearing loss; major cause of morbidity in transplant recipients.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Cytomegalovirus_CMV.jpg/320px-Cytomegalovirus_CMV.jpg",caption:"Cytomegalovirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Cytomegalovirus_CMV.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Human betaherpesvirus 6A",binomial:"Roseolovirus humanbeta6a",
  classic:["Viruses","Herpesvirales","Herpesviridae","Betaherpesvirinae","Roseolovirus","Human betaherpesvirus 6A"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Roseolovirus","Human betaherpesvirus 6A"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Betaherpesvirinae","Roseolovirus",null,"Human betaherpesvirus 6A"],
- hint:"HHV-6A; can integrate into germ-line chromosomes; ~1% of people carry it in every cell of their body.",
+ hint:"Roseolovirus that uniquely integrates into the telomeric repeat regions of human chromosomes and can be transmitted through the germline; ~1% of people harbour it in every somatic cell; uses CD46 as entry receptor.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Herpes_simplex_virus_TEM_B82-0474_lores.jpg/320px-Herpes_simplex_virus_TEM_B82-0474_lores.jpg",caption:"Herpesvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Herpes_simplex_virus_TEM_B82-0474_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Human gammaherpesvirus 4",binomial:"Lymphocryptovirus humangamma4",
  classic:["Viruses","Herpesvirales","Herpesviridae","Gammaherpesvirinae","Lymphocryptovirus","Human gammaherpesvirus 4"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Lymphocryptovirus","Human gammaherpesvirus 4"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Gammaherpesvirinae","Lymphocryptovirus",null,"Human gammaherpesvirus 4"],
- hint:"EBV; infectious mononucleosis; Burkitt lymphoma; nasopharyngeal carcinoma; latent in B cells.",
+ hint:"Gammaherpesvirus that exploits the germinal centre reaction to establish lifelong latency in memory B cells; EBNA2 mimics Notch signalling to drive proliferation; associated with Burkitt lymphoma in sub-Saharan Africa and nasopharyngeal carcinoma in East Asia.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Epstein-Barr_Virus.jpg/320px-Epstein-Barr_Virus.jpg",caption:"Epstein-Barr virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Epstein-Barr_Virus.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Human gammaherpesvirus 8",binomial:"Rhadinovirus humangamma8",
  classic:["Viruses","Herpesvirales","Herpesviridae","Gammaherpesvirinae","Rhadinovirus","Human gammaherpesvirus 8"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Rhadinovirus","Human gammaherpesvirus 8"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Gammaherpesvirinae","Rhadinovirus",null,"Human gammaherpesvirus 8"],
- hint:"KSHV; Kaposi sarcoma; primary effusion lymphoma; major AIDS-defining malignancy.",
+ hint:"Gammaherpesvirus encoding numerous viral homologues of cellular proteins including a cyclin D, Bcl-2, IL-6, and a G-protein-coupled receptor; infects endothelial and B cells; the most recently discovered human tumour virus (identified 1994 by representational difference analysis).",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Herpes_simplex_virus_TEM_B82-0474_lores.jpg/320px-Herpes_simplex_virus_TEM_B82-0474_lores.jpg",caption:"Herpesvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Herpes_simplex_virus_TEM_B82-0474_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Murine gammaherpesvirus 68",binomial:"Rhadinovirus muridinegamma4",
  classic:["Viruses","Herpesvirales","Herpesviridae","Gammaherpesvirinae","Rhadinovirus","Murine gammaherpesvirus 68"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Rhadinovirus","Murine gammaherpesvirus 68"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Gammaherpesvirinae","Rhadinovirus",null,"Murine gammaherpesvirus 68"],
- hint:"MHV-68; premier small-animal model for EBV/KSHV biology; infects lung epithelium then establishes latency in B cells.",
+ hint:"Rhadinovirus isolated from bank voles in Slovakia; naturally infects murid rodents; used as the premier tractable small-animal model for gammaherpesvirus pathogenesis; primary infection via the lung, with latency established in B cells and macrophages.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Herpes_simplex_virus_TEM_B82-0474_lores.jpg/320px-Herpes_simplex_virus_TEM_B82-0474_lores.jpg",caption:"Herpesvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Herpes_simplex_virus_TEM_B82-0474_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Murine cytomegalovirus",binomial:"Muromegalovirus muridbeta1",
  classic:["Viruses","Herpesvirales","Herpesviridae","Betaherpesvirinae","Muromegalovirus","Murine cytomegalovirus"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Muromegalovirus","Murine cytomegalovirus"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Betaherpesvirinae","Muromegalovirus",null,"Murine cytomegalovirus"],
- hint:"MCMV; premier model for CMV pathogenesis and NK/T cell responses; widely used in transplantation immunology.",
+ hint:"Betaherpesvirus of laboratory mice; genome encodes multiple immune evasion genes including MHC class I downregulators; the Ly49H NK cell receptor recognises the viral m157 glycoprotein, providing a model of innate immune activation.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Cytomegalovirus_CMV.jpg/320px-Cytomegalovirus_CMV.jpg",caption:"Cytomegalovirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Cytomegalovirus_CMV.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Marek's disease virus",binomial:"Mardivirus gallidalpha2",
  classic:["Viruses","Herpesvirales","Herpesviridae","Alphaherpesvirinae","Mardivirus","Marek's disease virus"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Herviviricetes","Herpesvirales","Herpesviridae","Mardivirus","Marek's disease virus"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Herviviricetes",null,"Herpesvirales",null,"Herpesviridae","Alphaherpesvirinae","Mardivirus",null,"Marek's disease virus"],
- hint:"T-cell lymphoma in chickens; vaccine prevents tumors but not infection—driving ongoing viral evolution toward higher virulence.",
+ hint:"Alphaherpesvirus of poultry that transforms CD4⁺ T cells via the Meq oncoprotein; vaccine prevents tumour formation but not superinfection, creating ongoing selection pressure for increased virulence—a rare natural example of imperfect vaccine-driven evolution.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Herpes_simplex_virus_TEM_B82-0474_lores.jpg/320px-Herpes_simplex_virus_TEM_B82-0474_lores.jpg",caption:"Herpesvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Herpes_simplex_virus_TEM_B82-0474_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1043,35 +1047,35 @@ const VIRUS_DB = [
  classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Orthopoxvirus","Variola virus"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Orthopoxvirus","Variola virus"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Orthopoxvirus",null,"Variola virus"],
- hint:"Causative agent of smallpox; declared eradicated by WHO 1980; remaining stocks at CDC (USA) and VECTOR (Russia).",
+ hint:"Large dsDNA orthopoxvirus that replicates entirely in the cytoplasm using its own transcription machinery; the only human pathogen officially declared eradicated (1980); authenticated stocks retained at only two WHO repositories; variola major had ~30% CFR.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg/320px-Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",caption:"Variola virus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Vaccinia virus",binomial:"Orthopoxvirus vaccinae",
  classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Orthopoxvirus","Vaccinia virus"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Orthopoxvirus","Vaccinia virus"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Orthopoxvirus",null,"Vaccinia virus"],
- hint:"Used as the live smallpox vaccine; most complex animal virus known; encodes its own transcription machinery.",
+ hint:"Large orthopoxvirus whose exact natural host remains unknown; encodes >200 open reading frames including a complete cytoplasmic transcription system; produces four distinct infectious forms (IMV, IEV, CEV, EEV); widely used as a recombinant vaccine vector.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg/320px-Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",caption:"Orthopoxvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Mpox virus",binomial:"Orthopoxvirus simiae",
  classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Orthopoxvirus","Mpox virus"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Orthopoxvirus","Mpox virus"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Orthopoxvirus",null,"Mpox virus"],
- hint:"WHO declared PHEIC in 2022 (clade II) and again 2024 (clade Ib); zoonotic from rodents, not monkeys.",
+ hint:"Orthopoxvirus mis-named after the species in which it was first isolated in a laboratory; natural reservoir is likely African rodents; two clades with distinct virulence; declared a Public Health Emergency of International Concern twice in the 2020s.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg/320px-Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",caption:"Orthopoxvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Molluscum contagiosum virus",binomial:"Molluscipoxvirus molluscum",
  classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Molluscipoxvirus","Molluscum contagiosum virus"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Molluscipoxvirus","Molluscum contagiosum virus"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Molluscipoxvirus",null,"Molluscum contagiosum virus"],
- hint:"Common umbilicated skin papules; infects only humans; widespread in immunocompromised patients.",
+ hint:"Poxvirus with strict human host range; produces characteristic pearly, umbilicated papules by hijacking keratinocyte proliferation pathways; cannot replicate in standard cell lines; genome encodes MCV-FLIP, an apoptosis inhibitor.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg/320px-Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",caption:"Poxvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 {name:"Myxoma virus",binomial:"Leporipoxvirus myxoma",
  classic:["Viruses","Chitovirales","Poxviridae","Chordopoxvirinae","Leporipoxvirus","Myxoma virus"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Pokkesviricetes","Chitovirales","Poxviridae","Leporipoxvirus","Myxoma virus"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Pokkesviricetes",null,"Chitovirales",null,"Poxviridae","Chordopoxvirinae","Leporipoxvirus",null,"Myxoma virus"],
- hint:"Released in Australia 1950 to control rabbits; classic case study in host-pathogen co-evolution and biological control.",
+ hint:"Leporipoxvirus of South American tapeti rabbits; produces a mild fibroma in its natural host but lethal generalised disease in European rabbits; deliberately released in Australia in 1950 as biological control; subsequent co-evolution rapidly attenuated both virus and host.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg/320px-Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",caption:"Poxvirus (TEM, CDC)",srcUrl:"https://commons.wikimedia.org/wiki/File:Smallpox_virus_virions_TEM_PHIL_1849_lores.jpg",credit:"CDC/PHIL — public domain"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1081,14 +1085,14 @@ const VIRUS_DB = [
  classic:["Viruses","Rowavirales","Adenoviridae",null,"Mastadenovirus","Human adenovirus 5"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Preplasmiviricota","Tectiliviricetes","Rowavirales","Adenoviridae","Mastadenovirus","Human adenovirus 5"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Preplasmiviricota",null,"Tectiliviricetes",null,"Rowavirales",null,"Adenoviridae","Mastadenovirinae","Mastadenovirus",null,"Human adenovirus 5"],
- hint:"Icosahedral with fiber knob projections; common respiratory pathogen; widely used vaccine vector (COVID, Ebola).",
+ hint:"Non-enveloped dsDNA virus with prominent trimeric fiber knobs that bind CAR (coxsackievirus-adenovirus receptor); penton base-RGD motifs engage αv integrins for internalisation; classified in Species C; widely used as a replication-defective vaccine vector.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Adenovirus_3D.jpg/320px-Adenovirus_3D.jpg",caption:"Adenovirus (3D model)",srcUrl:"https://commons.wikimedia.org/wiki/File:Adenovirus_3D.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Human adenovirus 2",binomial:"Mastadenovirus humanus2",
  classic:["Viruses","Rowavirales","Adenoviridae",null,"Mastadenovirus","Human adenovirus 2"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Preplasmiviricota","Tectiliviricetes","Rowavirales","Adenoviridae","Mastadenovirus","Human adenovirus 2"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Preplasmiviricota",null,"Tectiliviricetes",null,"Rowavirales",null,"Adenoviridae","Mastadenovirinae","Mastadenovirus",null,"Human adenovirus 2"],
- hint:"HAdV-2; first virus shown to have spliced mRNAs (Sharp & Roberts, 1977 Nobel Prize).",
+ hint:"Species C adenovirus; the discovery of RNA splicing was made using this virus's transcripts as a model system, earning the 1977 Nobel Prize; the major late promoter and tripartite leader are textbook examples of eukaryotic gene regulation.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Adenovirus_3D.jpg/320px-Adenovirus_3D.jpg",caption:"Adenovirus (model)",srcUrl:"https://commons.wikimedia.org/wiki/File:Adenovirus_3D.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1098,42 +1102,42 @@ const VIRUS_DB = [
  classic:["Viruses","Zurhausenvirales","Papillomaviridae",null,"Alphapapillomavirus","Human papillomavirus type 16"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Papovaviricetes","Zurhausenvirales","Papillomaviridae","Alphapapillomavirus","Human papillomavirus type 16"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Papovaviricetes",null,"Zurhausenvirales",null,"Papillomaviridae","Firstpapillomavirinae","Alphapapillomavirus",null,"Human papillomavirus type 16"],
- hint:"Primary cause of cervical cancer; integrates E6/E7 to neutralize p53/Rb; 9-valent vaccine available.",
+ hint:"High-risk Alphapapillomavirus; integrates into the host genome, allowing E6 to target p53 for proteasomal degradation and E7 to bind Rb family proteins; accounted for ~50% of cervical cancers before widespread vaccination; covered by a 9-valent VLP vaccine.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Papillomavirus_3D_structure.png/320px-Papillomavirus_3D_structure.png",caption:"Papillomavirus (3D structure)",srcUrl:"https://commons.wikimedia.org/wiki/File:Papillomavirus_3D_structure.png",credit:"Wikimedia Commons — public domain"}},
 
 {name:"BK polyomavirus",binomial:"Alphapolyomavirus hominis1",
  classic:["Viruses","Zurhausenvirales","Polyomaviridae",null,"Alphapolyomavirus","BK polyomavirus"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Papovaviricetes","Zurhausenvirales","Polyomaviridae","Alphapolyomavirus","BK polyomavirus"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Papovaviricetes",null,"Zurhausenvirales",null,"Polyomaviridae",null,"Alphapolyomavirus",null,"BK polyomavirus"],
- hint:"Named after patient B.K.; latent in kidneys; causes hemorrhagic cystitis in renal transplant recipients.",
+ hint:"Polyomavirus that establishes lifelong latency in the renal tubular epithelium and urothelium; seroprevalence >90% in adults; reactivates under immunosuppression causing nephropathy and haemorrhagic cystitis in transplant recipients; named from the initials of the first patient.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Papillomavirus_3D_structure.png/320px-Papillomavirus_3D_structure.png",caption:"Polyomavirus (icosahedral ssDNA)",srcUrl:"https://commons.wikimedia.org/wiki/File:Papillomavirus_3D_structure.png",credit:"Wikimedia Commons — public domain"}},
 
 {name:"Simian virus 40",binomial:"Betapolyomavirus macacae",
  classic:["Viruses","Zurhausenvirales","Polyomaviridae",null,"Betapolyomavirus","Simian virus 40"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Papovaviricetes","Zurhausenvirales","Polyomaviridae","Betapolyomavirus","Simian virus 40"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Papovaviricetes",null,"Zurhausenvirales",null,"Polyomaviridae",null,"Betapolyomavirus",null,"Simian virus 40"],
- hint:"SV40; contaminated early polio vaccines; T antigen immortalizes cells; foundational molecular biology tool.",
+ hint:"Primate polyomavirus discovered as a contaminant of poliovirus vaccine stocks produced in rhesus monkey kidney cells; Large T antigen binds and inactivates p53 and Rb; used as a model to discover eukaryotic DNA replication origins and enhancers.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Papillomavirus_3D_structure.png/320px-Papillomavirus_3D_structure.png",caption:"Polyomavirus (representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:Papillomavirus_3D_structure.png",credit:"Wikimedia Commons — public domain"}},
 
 {name:"Adeno-associated virus 2",binomial:"Dependoparvovirus primatependens",
  classic:["Viruses","Piccovirales","Parvoviridae",null,"Dependoparvovirus","Adeno-associated virus 2"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Quintoviricetes","Piccovirales","Parvoviridae","Dependoparvovirus","Adeno-associated virus 2"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Quintoviricetes",null,"Piccovirales",null,"Parvoviridae","Parvovirinae","Dependoparvovirus",null,"Adeno-associated virus 2"],
- hint:"Non-pathogenic; requires helper virus; most widely used gene therapy vector (Luxturna, Zolgensma, Hemgenix).",
+ hint:"Defective dependoparvovirus requiring co-infection with adenovirus or herpesvirus for productive replication; integrates at AAVS1 on chromosome 19 in the wild type; recombinant versions remain episomal and are the predominant gene therapy delivery platform.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/AAV.jpg/320px-AAV.jpg",caption:"AAV2 (cryo-EM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:AAV.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Human parvovirus B19",binomial:"Erythroparvovirus primateerythro1",
  classic:["Viruses","Piccovirales","Parvoviridae",null,"Erythroparvovirus","Human parvovirus B19"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Quintoviricetes","Piccovirales","Parvoviridae","Erythroparvovirus","Human parvovirus B19"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Quintoviricetes",null,"Piccovirales",null,"Parvoviridae","Parvovirinae","Erythroparvovirus",null,"Human parvovirus B19"],
- hint:"Fifth disease (slapped-cheek); aplastic crisis in sickle-cell disease; hydrops fetalis in pregnancy.",
+ hint:"Erythroparvovirus with exclusive tropism for erythroid progenitors via P antigen (globoside) receptor; causes a mild exanthem in immunocompetent children; in haemolytic anaemia patients the abrupt arrest of erythropoiesis precipitates a transient aplastic crisis.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/AAV.jpg/320px-AAV.jpg",caption:"Parvovirus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:AAV.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Minute virus of mice",binomial:"Bocaparvovirus muridboca1",
  classic:["Viruses","Piccovirales","Parvoviridae",null,"Bocaparvovirus","Minute virus of mice"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Quintoviricetes","Piccovirales","Parvoviridae","Bocaparvovirus","Minute virus of mice"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Quintoviricetes",null,"Piccovirales",null,"Parvoviridae","Parvovirinae","Bocaparvovirus",null,"Minute virus of mice"],
- hint:"MVM; model parvovirus for cell-cycle dependent replication; important biopharmaceutical manufacturing contaminant.",
+ hint:"Bocaparvovirus of laboratory mice; replication absolutely requires S-phase host factors, making it a model for studying cell-cycle-dependent DNA replication; its extreme heat and detergent resistance makes it the worst-case contaminant used to validate biopharmaceutical clearance processes.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/AAV.jpg/320px-AAV.jpg",caption:"Parvovirus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:AAV.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1143,14 +1147,14 @@ const VIRUS_DB = [
  classic:["Viruses","Imitervirales","Mimiviridae",null,"Mimivirus","Mimivirus"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Megaviricetes","Imitervirales","Mimiviridae","Mimivirus","Mimivirus"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Megaviricetes",null,"Imitervirales",null,"Mimiviridae","Mimivirinae","Mimivirus",null,"Mimivirus"],
- hint:"Discovered 2003; larger than many bacteria (~750 nm); encodes aminoacyl-tRNA synthetases; infects Acanthamoeba.",
+ hint:"First giant virus discovered; ~750 nm diameter, visible by light microscopy; genome encodes all 20 aminoacyl-tRNA synthetases, blurring the line between viruses and cellular life; infects Acanthamoeba; even has its own virophage (Sputnik).",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Mimivirus.jpg/320px-Mimivirus.jpg",caption:"Mimivirus (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:Mimivirus.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Pandoravirus salinus",binomial:"Pandoravirus salinarus",
  classic:["Viruses","Imitervirales","Pandoraviridae",null,"Pandoravirus","Pandoravirus salinus"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Megaviricetes","Imitervirales","Pandoraviridae","Pandoravirus","Pandoravirus salinus"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Megaviricetes",null,"Imitervirales",null,"Pandoraviridae",null,"Pandoravirus",null,"Pandoravirus salinus"],
- hint:"Largest known virus genome (~2.5 Mb, ~2,500 genes); ~93% of genes have no homologs; discovered Chile 2013.",
+ hint:"Amphora-shaped giant virus ~1 µm long; carries the largest viral genome known (~2.5 Mb); ~93% of its predicted proteins lack detectable homologs in any database, suggesting an ancient, highly divergent lineage; discovered in a Chilean saltwater sample.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Pandoravirus_salinus.jpg/320px-Pandoravirus_salinus.jpg",caption:"Pandoravirus salinus (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:Pandoravirus_salinus.jpg",credit:"Wikimedia Commons — CC BY-SA 4.0"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1160,70 +1164,70 @@ const VIRUS_DB = [
  classic:["Viruses","Martellivirales","Virgaviridae",null,"Tobamovirus","Tobacco mosaic virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Virgaviridae","Tobamovirus","Tobacco mosaic virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Virgaviridae",null,"Tobamovirus",null,"Tobacco mosaic virus"],
- hint:"First virus ever discovered (Ivanovsky/Beijerinck 1892–1898); rigid helical rod 300×18 nm; mechanically transmitted.",
+ hint:"First infectious agent shown to pass through porcelain Chamberland filters, establishing the concept of a filterable virus (1892–1898); rigid helical rod of 300×18 nm; coat protein self-assembles around the RNA; mechanically transmitted; used as a nano-scaffold in materials science.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Tobacco mosaic virus (TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Tomato bushy stunt virus",binomial:"Tombusvirus solani",
  classic:["Viruses","Tolivirales","Tombusviridae",null,"Tombusvirus","Tomato bushy stunt virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Tolivirales","Tombusviridae","Tombusvirus","Tomato bushy stunt virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Tolivirales",null,"Tombusviridae",null,"Tombusvirus",null,"Tomato bushy stunt virus"],
- hint:"TBSV; first plant virus to have its coat protein crystal structure solved (Harrison, 1978).",
+ hint:"Icosahedral positive-sense ssRNA plant virus; the first to have its coat protein structure solved by X-ray crystallography (Harrison et al., 1978), revealing the quasi-equivalent T=3 arrangement; subgenomic RNA strategy; infects a wide range of dicots.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Cucumber mosaic virus",binomial:"Cucumovirus abutilonis",
  classic:["Viruses","Martellivirales","Bromoviridae",null,"Cucumovirus","Cucumber mosaic virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Bromoviridae","Cucumovirus","Cucumber mosaic virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Bromoviridae",null,"Cucumovirus",null,"Cucumber mosaic virus"],
- hint:"CMV; widest host range of any plant virus (>1,200 species); aphid-transmitted; tripartite RNA genome.",
+ hint:"Tripartite positive-sense ssRNA genome packaged in three separate icosahedral particles; widest experimental host range of any plant virus (>1,200 species); non-persistently transmitted by many aphid species; satellite RNAs can dramatically alter disease phenotype.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Brome mosaic virus",binomial:"Bromovirus bromi",
  classic:["Viruses","Martellivirales","Bromoviridae",null,"Bromovirus","Brome mosaic virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Bromoviridae","Bromovirus","Brome mosaic virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Bromoviridae",null,"Bromovirus",null,"Brome mosaic virus"],
- hint:"BMV; tripartite RNA genome; model plant RNA virus; first plant virus replicated in yeast.",
+ hint:"Tripartite positive-sense ssRNA bromovirus; replication complex assembles on ER membranes; the first plant RNA virus shown to replicate in yeast, enabling powerful genetic dissection of its replicase; T=3 icosahedral capsid.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Turnip mosaic virus",binomial:"Potyvirus rapae",
  classic:["Viruses","Patatavirales","Potyviridae",null,"Potyvirus","Turnip mosaic virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Stelpaviricetes","Patatavirales","Potyviridae","Potyvirus","Turnip mosaic virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Stelpaviricetes",null,"Patatavirales",null,"Potyviridae",null,"Potyvirus",null,"Turnip mosaic virus"],
- hint:"TuMV; globally important Brassica pathogen; flexuous filamentous particle; widely used model potyvirus.",
+ hint:"Flexuous filamentous potyvirus with a VPg covalently linked to the 5′ end of the genomic RNA; polyprotein processed by three virus-encoded proteases; HC-Pro suppresses RNA silencing; a major pathogen of Brassica crops worldwide.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Potato virus X",binomial:"Potexvirus solani",
  classic:["Viruses","Tymovirales","Alphaflexiviridae",null,"Potexvirus","Potato virus X"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Tymovirales","Alphaflexiviridae","Potexvirus","Potato virus X"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Tymovirales",null,"Alphaflexiviridae",null,"Potexvirus",null,"Potato virus X"],
- hint:"PVX; prototype potexvirus; widely used as a plant virus expression vector; mechanically transmitted.",
+ hint:"Prototype potexvirus with a flexuous filamentous morphology; 5′-capped positive-sense ssRNA; triple gene block encodes cell-to-cell movement proteins; highly amenable to modification as a plant expression vector; no known arthropod vector.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Tomato yellow leaf curl virus",binomial:"Begomovirus tomatoleafcurl",
  classic:["Viruses","Geplafuvirales","Geminiviridae",null,"Begomovirus","Tomato yellow leaf curl virus"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Repensiviricetes","Geplafuvirales","Geminiviridae","Begomovirus","Tomato yellow leaf curl virus"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Repensiviricetes",null,"Geplafuvirales",null,"Geminiviridae",null,"Begomovirus",null,"Tomato yellow leaf curl virus"],
- hint:"TYLCV; whitefly (Bemisia tabaci) vector; ssDNA geminivirus; devastating tomato pathogen worldwide.",
+ hint:"Monopartite ssDNA begomovirus with characteristic geminate (twinned) icosahedral particles; Rep protein initiates rolling-circle replication; Bemisia tabaci whitefly is the sole vector; has spread from the Middle East to become a global threat to Solanaceous crops.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Maize streak virus",binomial:"Mastrevirus maydis",
  classic:["Viruses","Geplafuvirales","Geminiviridae",null,"Mastrevirus","Maize streak virus"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Repensiviricetes","Geplafuvirales","Geminiviridae","Mastrevirus","Maize streak virus"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Repensiviricetes",null,"Geplafuvirales",null,"Geminiviridae",null,"Mastrevirus",null,"Maize streak virus"],
- hint:"Most economically important virus of maize in sub-Saharan Africa; leafhopper transmitted; monopartite ssDNA.",
+ hint:"Monopartite ssDNA mastrevirus in Geminiviridae; circulative transmission by Cicadulina leafhopper vectors; the most economically significant plant virus in sub-Saharan Africa; RepA protein interacts with plant Rb to drive cells into S-phase.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Barley yellow dwarf virus",binomial:"Luteovirus hordei",
  classic:["Viruses","Tolivirales","Luteoviridae",null,"Luteovirus","Barley yellow dwarf virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Pisoniviricetes","Tolivirales","Luteoviridae","Luteovirus","Barley yellow dwarf virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Pisoniviricetes",null,"Tolivirales",null,"Luteoviridae",null,"Luteovirus",null,"Barley yellow dwarf virus"],
- hint:"BYDV; most economically important virus of cereals worldwide; aphid-transmitted; causes yellowing and dwarfism.",
+ hint:"Persistently-transmitted phloem-limited luteovirus; circulates through aphid haemolymph and salivary glands without replication; no coat protein readthrough is needed for aphid transmission; causes extensive chlorosis and stunting in cereal crops.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Tobacco rattle virus",binomial:"Tobravirus tabaci",
  classic:["Viruses","Martellivirales","Virgaviridae",null,"Tobravirus","Tobacco rattle virus"],
  simple: ["Viruses","Riboviria","Orthornavirae","Kitrinoviricota","Alsuviricetes","Martellivirales","Virgaviridae","Tobravirus","Tobacco rattle virus"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Kitrinoviricota",null,"Alsuviricetes",null,"Martellivirales",null,"Virgaviridae",null,"Tobravirus",null,"Tobacco rattle virus"],
- hint:"TRV; nematode-transmitted bipartite RNA virus; widely used as a VIGS (virus-induced gene silencing) vector.",
+ hint:"Bipartite positive-sense ssRNA tobravirus; unusually transmitted by dagger nematodes (Trichodorus spp.) rather than arthropods; produces two particle sizes (long and short rods); widely adopted as a VIGS vector because of its broad host range and robust systemic movement.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tobacco_Mosaic_Virus-MJ_Pennisi.jpg/320px-Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",caption:"Plant virus (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:Tobacco_Mosaic_Virus-MJ_Pennisi.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1233,77 +1237,77 @@ const VIRUS_DB = [
  classic:["Viruses","Caudovirales","Straboviridae",null,"Tequatrovirus","T4 bacteriophage"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Caudoviricetes","Caudovirales","Straboviridae","Tequatrovirus","T4 bacteriophage"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Caudoviricetes",null,"Caudovirales",null,"Straboviridae","Tevenvirinae","Tequatrovirus",null,"T4 bacteriophage"],
- hint:"Iconic contractile-tail myovirus; 170 kb dsDNA; lunar-lander morphology; infects E. coli.",
+ hint:"Contractile-tail myovirus with a 170 kb dsDNA genome; baseplate undergoes conformational change to drive tail sheath contraction and needle penetration; genome contains hydroxymethylcytosine instead of cytosine; subject of classic genetic studies defining the lac operon and amber suppression.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"T4 bacteriophage (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"T7 bacteriophage",binomial:"T7virus T7",
  classic:["Viruses","Caudovirales","Autographiviridae",null,"T7virus","T7 bacteriophage"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Caudoviricetes","Caudovirales","Autographiviridae","T7virus","T7 bacteriophage"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Caudoviricetes",null,"Caudovirales",null,"Autographiviridae","Studiervirinae","T7virus",null,"T7 bacteriophage"],
- hint:"Encodes its own T7 RNA polymerase; T7 promoter is ubiquitous in molecular biology for recombinant protein expression.",
+ hint:"Short non-contractile tail podoviridae member; encodes a single-subunit RNA polymerase with extraordinary promoter specificity; this enzyme-promoter pair is exploited in the most widely used prokaryotic recombinant protein expression systems.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Phage (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Lambda phage",binomial:"Lambdavirus lambda",
  classic:["Viruses","Caudovirales","Drexlerviridae",null,"Lambdavirus","Lambda phage"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Caudoviricetes","Caudovirales","Drexlerviridae","Lambdavirus","Lambda phage"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Caudoviricetes",null,"Caudovirales",null,"Drexlerviridae","Lambdavirinae","Lambdavirus",null,"Lambda phage"],
- hint:"Model temperate phage; lytic vs lysogenic switch is a classic model of genetic regulation (Ptashne).",
+ hint:"Temperate siphovirus whose lytic/lysogenic decision is governed by the CI repressor and Cro proteins binding overlapping operators; Mark Ptashne's dissection of this switch became a paradigm of gene regulation; cos sites enable packaging of concatemeric DNA.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/PhageLambda.jpg/320px-PhageLambda.jpg",caption:"Lambda phage (TEM, Wikimedia)",srcUrl:"https://commons.wikimedia.org/wiki/File:PhageLambda.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"MS2 bacteriophage",binomial:"Allolevivirus MS2",
  classic:["Viruses","Norzivirales","Fiersviridae",null,"Allolevivirus","MS2 bacteriophage"],
  simple: ["Viruses","Riboviria","Orthornavirae","Lenarviricota","Allassoviricetes","Norzivirales","Fiersviridae","Allolevivirus","MS2 bacteriophage"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Lenarviricota",null,"Allassoviricetes",null,"Norzivirales",null,"Fiersviridae",null,"Allolevivirus",null,"MS2 bacteriophage"],
- hint:"ssRNA phage; first genome fully sequenced (Fiers, 1976); infects E. coli via F pilus; icosahedral.",
+ hint:"Icosahedral ssRNA levivirus that attaches to the tip of the F sex pilus; the first RNA genome to be fully sequenced (1976); maturation protein, coat protein, and replicase are encoded in a tightly overlapping genome of only ~3.6 kb.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"RNA phage (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Qβ bacteriophage",binomial:"Qbetavirus Qbeta",
  classic:["Viruses","Norzivirales","Fiersviridae",null,"Qbetavirus","Qβ bacteriophage"],
  simple: ["Viruses","Riboviria","Orthornavirae","Lenarviricota","Allassoviricetes","Norzivirales","Fiersviridae","Qbetavirus","Qβ bacteriophage"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Lenarviricota",null,"Allassoviricetes",null,"Norzivirales",null,"Fiersviridae",null,"Qbetavirus",null,"Qβ bacteriophage"],
- hint:"RNA phage; Qβ replicase was the first RNA-dependent RNA polymerase characterized; Spiegelman monster experiments.",
+ hint:"Positive-sense ssRNA phage; its replicase (Qβ RdRp) was the first RNA-dependent RNA polymerase biochemically characterised; Sol Spiegelman used serial passage of the RNA in vitro to evolve a minimal self-replicating molecule ('Spiegelman's monster').",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"RNA phage (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"PhiX174",binomial:"Microvirus phiX174",
  classic:["Viruses",null,"Microviridae",null,"Microvirus","PhiX174"],
  simple: ["Viruses","Monodnaviria","Shotokuvirae","Cossaviricota","Quintoviricetes","Petitvirales","Microviridae","Microvirus","PhiX174"],
  full:   ["Viruses","Monodnaviria",null,"Shotokuvirae",null,"Cossaviricota",null,"Quintoviricetes",null,"Petitvirales",null,"Microviridae","Bullavirinae","Microvirus",null,"PhiX174"],
- hint:"First DNA genome fully sequenced (Sanger, 1977); ssDNA; 5,386 nt encoding only 11 genes; infects E. coli.",
+ hint:"Single-stranded circular DNA microvirus; 5,386 nucleotides encoding only 11 proteins through extensive gene overlap; the first DNA genome to be completely sequenced (Sanger, 1977); replicates via a double-stranded replicative form using host primase.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Small phage (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"M13 bacteriophage",binomial:"Inovirus M13",
  classic:["Viruses",null,"Inoviridae",null,"Inovirus","M13 bacteriophage"],
  simple: ["Viruses","Monodnaviria","Helvetiavirae","Cossaviricota","Faserviricetes","Tubulavirales","Inoviridae","Inovirus","M13 bacteriophage"],
  full:   ["Viruses","Monodnaviria",null,"Helvetiavirae",null,"Cossaviricota",null,"Faserviricetes",null,"Tubulavirales",null,"Inoviridae",null,"Inovirus",null,"M13 bacteriophage"],
- hint:"Filamentous ssDNA phage; essential for phage display technology (Smith & Winter Nobel Prize 2018); non-lytic.",
+ hint:"Filamentous inovirus with a single-stranded circular DNA genome; continuously secreted from the host without lysis; pIII minor coat protein fusions enable display of foreign peptides or antibody fragments, the technology recognised by the 2018 Nobel Prize.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Filamentous phage (representative TEM)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Mu bacteriophage",binomial:"Peduovirus Mu",
  classic:["Viruses","Caudovirales","Peduoviridae",null,"Peduovirus","Mu bacteriophage"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Caudoviricetes","Caudovirales","Peduoviridae","Peduovirus","Mu bacteriophage"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Caudoviricetes",null,"Caudovirales",null,"Peduoviridae",null,"Peduovirus",null,"Mu bacteriophage"],
- hint:"Transposable phage; integrates randomly into host chromosome; major tool for insertional mutagenesis.",
+ hint:"Temperate myovirus that replicates by transposition, integrating at quasi-random chromosomal positions; carries transposase and repressor genes; its ability to mobilise and rearrange the bacterial chromosome made it an indispensable tool for genetic mapping in enterobacteria.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Phage (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"P1 bacteriophage",binomial:"Inquilinusvirus P1",
  classic:["Viruses","Caudovirales","Drexlerviridae",null,"Inquilinusvirus","P1 bacteriophage"],
  simple: ["Viruses","Duplodnaviria","Heunggongvirae","Uroviricota","Caudoviricetes","Caudovirales","Drexlerviridae","Inquilinusvirus","P1 bacteriophage"],
  full:   ["Viruses","Duplodnaviria",null,"Heunggongvirae",null,"Uroviricota",null,"Caudoviricetes",null,"Caudovirales",null,"Drexlerviridae",null,"Inquilinusvirus",null,"P1 bacteriophage"],
- hint:"Temperate phage maintained as a plasmid in lysogeny; used for generalized transduction and Cre-lox in E. coli.",
+ hint:"Large temperate myovirus that exists as a low-copy circular plasmid during lysogeny rather than integrating into the chromosome; the most efficient agent of generalised transduction in E. coli; its Cre recombinase and loxP sites are used universally in conditional knockout mouse generation.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Phage (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"Φ6 bacteriophage",binomial:"Cystovirus phi6",
  classic:["Viruses",null,"Cystoviridae",null,"Cystovirus","Φ6 bacteriophage"],
  simple: ["Viruses","Riboviria","Orthornavirae","Duplornaviricota","Resentoviricetes","Mindivirales","Cystoviridae","Cystovirus","Φ6 bacteriophage"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Duplornaviricota",null,"Resentoviricetes",null,"Mindivirales",null,"Cystoviridae",null,"Cystovirus",null,"Φ6 bacteriophage"],
- hint:"Only dsRNA bacteriophage; lipid-enveloped (rare for phages); infects Pseudomonas; model for dsRNA virus replication.",
+ hint:"The only known dsRNA bacteriophage; unusually possesses a lipid envelope derived from the host inner membrane; tripartite segmented genome; its membrane acquisition and packaging mechanism inform models of influenza and reovirus assembly.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Phage (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 {name:"PRD1 bacteriophage",binomial:"Alphatectivirus PRD1",
  classic:["Viruses",null,"Tectiviridae",null,"Alphatectivirus","PRD1 bacteriophage"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Preplasmiviricota","Tectiliviricetes","Rowavirales","Tectiviridae","Alphatectivirus","PRD1 bacteriophage"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Preplasmiviricota",null,"Tectiliviricetes",null,"Rowavirales",null,"Tectiviridae",null,"Alphatectivirus",null,"PRD1 bacteriophage"],
- hint:"Linear dsDNA phage with internal lipid membrane; structurally related to adenoviruses—key evidence for PRD1-adeno lineage.",
+ hint:"Non-tailed tectiviridae member with a linear dsDNA genome and an internal lipid membrane vesicle; structural comparison of its major capsid protein to that of adenoviruses provided key evidence for an ancient evolutionary lineage connecting bacteriophages and eukaryotic DNA viruses.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Phage (TEM representative)",srcUrl:"https://commons.wikimedia.org/wiki/File:T4_bacteriophage.jpg",credit:"Wikimedia Commons — CC BY-SA 3.0"}},
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1313,35 +1317,35 @@ const VIRUS_DB = [
  classic:["Viruses",null,"Totiviridae",null,"Totivirus","Saccharomyces cerevisiae virus L-A"],
  simple: ["Viruses","Riboviria","Orthornavirae","Duplornaviricota","Resentoviricetes","Ghabrivirales","Totiviridae","Totivirus","Saccharomyces cerevisiae virus L-A"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Duplornaviricota",null,"Resentoviricetes",null,"Ghabrivirales",null,"Totiviridae",null,"Totivirus",null,"Saccharomyces cerevisiae virus L-A"],
- hint:"Persistent dsRNA virus in brewer's yeast; encodes the 'killer toxin' system; vertically transmitted; never leaves the cell.",
+ hint:"Endogenous dsRNA mycovirus in Saccharomyces; never forms extracellular particles—transmitted only by cell division or mating; encodes a toxin/immunity system that kills sensitive strains lacking the element; Gag-pol fusion is expressed by ribosomal frameshifting.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Yeast mycovirus (representative)",srcUrl:"https://en.wikipedia.org/wiki/Totivirus",credit:"Wikimedia Commons — public domain"}},
 
 {name:"Cryphonectria hypovirus 1",binomial:"Hypovirus cryphonectriae",
  classic:["Viruses",null,"Hypoviridae",null,"Hypovirus","Cryphonectria hypovirus 1"],
  simple: ["Viruses","Riboviria","Orthornavirae","Pisuviricota","Lenarviricetes","Durnavirales","Hypoviridae","Hypovirus","Cryphonectria hypovirus 1"],
  full:   ["Viruses","Riboviria",null,"Orthornavirae",null,"Pisuviricota",null,"Lenarviricetes",null,"Durnavirales",null,"Hypoviridae",null,"Hypovirus",null,"Cryphonectria hypovirus 1"],
- hint:"CHV1; infects chestnut blight fungus; causes hypovirulence; released in Europe as biological control agent.",
+ hint:"Positive-sense ssRNA hypovirus that infects Cryphonectria parasitica, the chestnut blight fungus; infection dramatically attenuates fungal virulence by interfering with G-protein signalling; transmitted via anastomosis between compatible fungal strains; deployed in Europe as a biocontrol.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Mycovirus (representative)",srcUrl:"https://en.wikipedia.org/wiki/Hypovirus",credit:"Wikimedia Commons — public domain"}},
 
 {name:"Chlorella virus PBCV-1",binomial:"Chlorovirus PBCV1",
  classic:["Viruses","Imitervirales","Phycodnaviridae",null,"Chlorovirus","Chlorella virus PBCV-1"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Megaviricetes","Imitervirales","Phycodnaviridae","Chlorovirus","Chlorella virus PBCV-1"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Megaviricetes",null,"Imitervirales",null,"Phycodnaviridae",null,"Chlorovirus",null,"Chlorella virus PBCV-1"],
- hint:"Infects green algae (Chlorella); encodes the Kcv K⁺ channel — smallest known functional potassium channel.",
+ hint:"Large dsDNA phycodnavirus that infects endosymbiotic Chlorella; genome encodes the Kcv potassium channel—the smallest known functional K⁺ channel (82 aa)—which depolarises the algal membrane to facilitate DNA injection; produces rapid lysis.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Phycodnavirus (representative)",srcUrl:"https://en.wikipedia.org/wiki/Chlorovirus",credit:"Wikimedia Commons — public domain"}},
 
 {name:"Emiliania huxleyi virus 86",binomial:"Coccolithovirus EhV86",
  classic:["Viruses","Imitervirales","Phycodnaviridae",null,"Coccolithovirus","Emiliania huxleyi virus 86"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Megaviricetes","Imitervirales","Phycodnaviridae","Coccolithovirus","Emiliania huxleyi virus 86"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Megaviricetes",null,"Imitervirales",null,"Phycodnaviridae",null,"Coccolithovirus",null,"Emiliania huxleyi virus 86"],
- hint:"Infects the most abundant calcifying phytoplankton; drives global bloom collapse; encodes its own sphingolipid pathway.",
+ hint:"Large dsDNA phycodnavirus that terminates massive oceanic blooms of the haptophyte Emiliania huxleyi; uniquely encodes enzymes for ceramide biosynthesis; infection-induced apoptosis and cell lysis releases particulate inorganic carbon, affecting global oceanic carbon flux.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Phycodnavirus (representative)",srcUrl:"https://en.wikipedia.org/wiki/Coccolithovirus",credit:"Wikimedia Commons — public domain"}},
 
 {name:"Sulfolobus turreted icosahedral virus",binomial:"Alphastigtovirus STIVense",
  classic:["Viruses",null,"Turriviridae",null,"Alphastigtovirus","Sulfolobus turreted icosahedral virus"],
  simple: ["Viruses","Varidnaviria","Bamfordvirae","Nucleocytoviricota","Arfiviricetes","Ligamenvirales","Turriviridae","Alphastigtovirus","Sulfolobus turreted icosahedral virus"],
  full:   ["Viruses","Varidnaviria",null,"Bamfordvirae",null,"Nucleocytoviricota",null,"Arfiviricetes",null,"Ligamenvirales",null,"Turriviridae",null,"Alphastigtovirus",null,"Sulfolobus turreted icosahedral virus"],
- hint:"STIV; infects hyperthermophilic archaea; unique pyramid-like protrusions for cell lysis; structurally related to PRD1 and adenoviruses.",
+ hint:"Inner-membrane-containing dsDNA virus of hyperthermophilic Sulfolobus archaea thriving at ~80°C pH 3; forms unique seven-sided pyramidal lysis structures on the host cell surface; its major capsid protein has the same double jelly-roll fold as PRD1 and adenovirus, revealing deep evolutionary conservation.",
  image:{src:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/T4_bacteriophage.jpg/320px-T4_bacteriophage.jpg",caption:"Archaeal virus (representative)",srcUrl:"https://en.wikipedia.org/wiki/Sulfolobus_turreted_icosahedral_virus",credit:"Wikimedia Commons — public domain"}},
 
 ]; // end VIRUS_DB
@@ -1436,8 +1440,8 @@ function initGame(){
     const won=s.lastWonDate===today;
     doneBanner.className='daily-done-banner show';
     doneBanner.innerHTML=won
-      ? `✅ You already completed today's Daily! Come back tomorrow for a new virus.<br><b>Streak: ${s.streak} 🔥</b> · <button class="soft-btn" style="margin-top:8px" onclick="openStats()">View Stats</button>`
-      : `❌ You already played today's Daily. The virus was <b>${escHtml(target.name)}</b>.<br><button class="soft-btn" style="margin-top:8px" onclick="openStats()">View Stats</button>`;
+      ? `✅ You got today's Daily in ${s.dist[String(guesses.length)]?guesses.length:'?'} guess${guesses.length===1?'':'es'}! <b>Streak: ${s.streak} 🔥</b><br><span style="font-size:12px">Come back tomorrow for a new virus — or <button class="soft-btn" style="padding:3px 10px;font-size:12px" onclick="setGameMode('practice')">try Practice mode</button> in the meantime.</span>`
+      : `❌ Today's Daily is done. The answer was <b>${escHtml(target.name)}</b>.<br><span style="font-size:12px">Try again tomorrow — or sharpen your skills in <button class="soft-btn" style="padding:3px 10px;font-size:12px" onclick="setGameMode('practice')">Practice mode</button>.</span>`;
     document.getElementById('guess-input').disabled=true;
     document.getElementById('guess-btn').disabled=true;
     gameOver=true;
